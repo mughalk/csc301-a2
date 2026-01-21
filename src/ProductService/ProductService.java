@@ -1,33 +1,27 @@
-
 import com.sun.net.httpserver.HttpServer;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpExchange;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
+import java.io.*;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
-
-import java.util.List;
-import java.util.Map;
+import java.sql.*;
 import java.util.concurrent.Executors;
 
 public class ProductService {
 
-    // "database", asked chatgpt what I should be using for the database
-    // NOT persistent, consider using JSON file or SQL
-    static final java.util.Map<Integer, Product> products =
-            new java.util.concurrent.ConcurrentHashMap<>();
+    private static final int PORT = 8081;
 
-    static class Product { //Product class
+    // Creates products.db in the working directory you run from
+    private static final String DB_URL = "jdbc:sqlite:products.db";
+
+    // ---------- Model ----------
+    static class Product {
         int id;
         String productname;
         double price;
         int quantity;
 
-        // Product constructor
         Product(int id, String productname, double price, int quantity) {
             this.id = id;
             this.productname = productname;
@@ -35,7 +29,6 @@ public class ProductService {
             this.quantity = quantity;
         }
 
-        // JSON response format required by the spec
         String toJson() {
             return "{\n" +
                     "    \"id\": " + id + ",\n" +
@@ -45,46 +38,73 @@ public class ProductService {
                     "}";
         }
 
-        // GPTed, used to prevent JSON breaking out of quotations
         private static String escape(String s) {
             if (s == null) return "";
             return s.replace("\\", "\\\\").replace("\"", "\\\"");
         }
     }
 
+    // ---------- Main ----------
     public static void main(String[] args) throws IOException {
-        int port = 8081;
-        HttpServer server = HttpServer.create(new InetSocketAddress(port), 0);
-        // Example: Set a custom executor with a fixed-size thread pool
-        server.setExecutor(Executors.newFixedThreadPool(20)); // Adjust the pool size as needed
+        initDb();
 
-        // Context for /product API endpoint
+        HttpServer server = HttpServer.create(new InetSocketAddress(PORT), 0);
+        server.setExecutor(Executors.newFixedThreadPool(20));
         server.createContext("/product", new ProductHandler());
-
-        server.setExecutor(null); // creates a default executor
-
         server.start();
 
-        System.out.println("Server started on port " + port);
+        System.out.println("ProductService started on port " + PORT);
+        System.out.println("SQLite DB: products.db (auto-created if missing)");
     }
 
+    // ---------- DB init / connection ----------
+    private static void initDb() {
+        try (Connection c = DriverManager.getConnection(DB_URL);
+             Statement st = c.createStatement()) {
+
+            // Recommended for concurrent reads/writes:
+            st.execute("PRAGMA journal_mode=WAL;");
+            st.execute("PRAGMA foreign_keys=ON;");
+
+            st.executeUpdate(
+                    "CREATE TABLE IF NOT EXISTS products (" +
+                            "id INTEGER PRIMARY KEY," +
+                            "productname TEXT NOT NULL," +
+                            "price REAL NOT NULL," +
+                            "quantity INTEGER NOT NULL" +
+                            ")"
+            );
+        } catch (SQLException e) {
+            throw new RuntimeException("Failed to initialize DB: " + e.getMessage(), e);
+        }
+    }
+
+    private static Connection openConn() throws SQLException {
+        return DriverManager.getConnection(DB_URL);
+    }
+
+    // ---------- HTTP Handler ----------
     static class ProductHandler implements HttpHandler {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
-            String method = exchange.getRequestMethod();
+            try {
+                String method = exchange.getRequestMethod();
 
-            if ("POST".equals(method)) {
-                handlePost(exchange);
-            } else if ("GET".equals(method)) {
-                handleGet(exchange);
-            } else {
-                exchange.sendResponseHeaders(405, 0);
-                exchange.close();
+                if ("POST".equalsIgnoreCase(method)) {
+                    handlePost(exchange);
+                } else if ("GET".equalsIgnoreCase(method)) {
+                    handleGet(exchange);
+                } else {
+                    exchange.sendResponseHeaders(405, 0);
+                    exchange.close();
+                }
+            } catch (Exception e) {
+                sendJson(exchange, 500, "{\"error\":\"Internal server error\"}");
             }
         }
 
         // -------- POST /product --------
-        private void handlePost(HttpExchange exchange) throws IOException {
+        private void handlePost(HttpExchange exchange) throws IOException, SQLException {
             String body = readBody(exchange);
 
             String command = getJsonString(body, "command");
@@ -112,8 +132,7 @@ public class ProductService {
             }
         }
 
-        private void handleCreate(HttpExchange exchange, String body, int id) throws IOException {
-            // required fields for create
+        private void handleCreate(HttpExchange exchange, String body, int id) throws IOException, SQLException {
             String productname = getJsonString(body, "productname");
             Double price = getJsonDouble(body, "price");
             Integer quantity = getJsonInt(body, "quantity");
@@ -123,43 +142,63 @@ public class ProductService {
                 return;
             }
 
-            if (products.containsKey(id)) {
-                sendJson(exchange, 409, "{\"error\":\"Product id already exists\"}");
-                return;
+            try (Connection c = openConn()) {
+                if (dbExistsById(c, id)) {
+                    sendJson(exchange, 409, "{\"error\":\"Product id already exists\"}");
+                    return;
+                }
+
+                try (PreparedStatement ps = c.prepareStatement(
+                        "INSERT INTO products(id, productname, price, quantity) VALUES(?,?,?,?)")) {
+                    ps.setInt(1, id);
+                    ps.setString(2, productname);
+                    ps.setDouble(3, price);
+                    ps.setInt(4, quantity);
+                    ps.executeUpdate();
+                }
             }
 
-            Product p = new Product(id, productname, price, quantity);
-            products.put(id, p);
-
-            sendJson(exchange, 200, p.toJson());
+            sendJson(exchange, 200, new Product(id, productname, price, quantity).toJson());
         }
 
-        private void handleUpdate(HttpExchange exchange, String body, int id) throws IOException {
-            Product existing = products.get(id);
-            if (existing == null) {
-                sendJson(exchange, 404, "{\"error\":\"Product not found\"}");
-                return;
-            }
-
-            // update only fields present
+        private void handleUpdate(HttpExchange exchange, String body, int id) throws IOException, SQLException {
             String productname = getJsonString(body, "productname");
             Double price = getJsonDouble(body, "price");
             Integer quantity = getJsonInt(body, "quantity");
 
-            if (productname != null) existing.productname = productname;
-            if (price != null) existing.price = price;
-            if (quantity != null) existing.quantity = quantity;
-
-            sendJson(exchange, 200, existing.toJson());
-        }
-
-        private void handleDelete(HttpExchange exchange, String body, int id) throws IOException {
-            Product existing = products.get(id);
-            if (existing == null) {
-                sendJson(exchange, 404, "{\"error\":\"Product not found\"}");
+            if (productname == null && price == null && quantity == null) {
+                sendJson(exchange, 400, "{\"error\":\"No updatable fields provided\"}");
                 return;
             }
 
+            Product updated;
+            try (Connection c = openConn()) {
+                Product existing = dbGetById(c, id);
+                if (existing == null) {
+                    sendJson(exchange, 404, "{\"error\":\"Product not found\"}");
+                    return;
+                }
+
+                if (productname != null) existing.productname = productname;
+                if (price != null) existing.price = price;
+                if (quantity != null) existing.quantity = quantity;
+
+                try (PreparedStatement ps = c.prepareStatement(
+                        "UPDATE products SET productname=?, price=?, quantity=? WHERE id=?")) {
+                    ps.setString(1, existing.productname);
+                    ps.setDouble(2, existing.price);
+                    ps.setInt(3, existing.quantity);
+                    ps.setInt(4, id);
+                    ps.executeUpdate();
+                }
+
+                updated = existing;
+            }
+
+            sendJson(exchange, 200, updated.toJson());
+        }
+
+        private void handleDelete(HttpExchange exchange, String body, int id) throws IOException, SQLException {
             String productname = getJsonString(body, "productname");
             Double price = getJsonDouble(body, "price");
             Integer quantity = getJsonInt(body, "quantity");
@@ -169,40 +208,47 @@ public class ProductService {
                 return;
             }
 
-            boolean matches =
-                    existing.productname.equals(productname) &&
-                            Double.compare(existing.price, price) == 0 &&
-                            existing.quantity == quantity;
+            try (Connection c = openConn()) {
+                if (!dbExistsById(c, id)) {
+                    sendJson(exchange, 404, "{\"error\":\"Product not found\"}");
+                    return;
+                }
 
-            if (!matches) {
-                // spec allows 401 or 404; using 401 for mismatch
-                sendJson(exchange, 401, "{\"error\":\"Delete failed: fields do not match\"}");
-                return;
+                int affected;
+                try (PreparedStatement ps = c.prepareStatement(
+                        "DELETE FROM products WHERE id=? AND productname=? AND price=? AND quantity=?")) {
+                    ps.setInt(1, id);
+                    ps.setString(2, productname);
+                    ps.setDouble(3, price);
+                    ps.setInt(4, quantity);
+                    affected = ps.executeUpdate();
+                }
+
+                if (affected == 0) {
+                    sendJson(exchange, 401, "{\"error\":\"Delete failed: fields do not match\"}");
+                    return;
+                }
             }
 
-            products.remove(id);
             sendJson(exchange, 200, "{\"status\":\"deleted\"}");
         }
 
+        // -------- GET /product/<id> --------
+        private void handleGet(HttpExchange exchange) throws IOException, SQLException {
+            String path = exchange.getRequestURI().getPath();
 
-        private void handleGet(HttpExchange exchange) throws IOException {
-            String path = exchange.getRequestURI().getPath(); // e.g. "/product/23823" or "/product"
-            // We registered context "/product", so we must handle both "/product" and "/product/<id>"
-            // Expecting "/product/<id>"
             if (path.equals("/product") || path.equals("/product/")) {
                 sendJson(exchange, 400, "{\"error\":\"Missing product id\"}");
                 return;
             }
 
-            // Extract id after "/product/"
             String prefix = "/product/";
             if (!path.startsWith(prefix)) {
-                // Shouldn't happen with this context, but be safe
                 sendJson(exchange, 404, "{\"error\":\"Not found\"}");
                 return;
             }
 
-            String idStr = path.substring(prefix.length()); // "23823" (maybe with extra slashes)
+            String idStr = path.substring(prefix.length());
             int slash = idStr.indexOf('/');
             if (slash >= 0) idStr = idStr.substring(0, slash);
 
@@ -214,7 +260,11 @@ public class ProductService {
                 return;
             }
 
-            Product p = products.get(id);
+            Product p;
+            try (Connection c = openConn()) {
+                p = dbGetById(c, id);
+            }
+
             if (p == null) {
                 sendJson(exchange, 404, "{\"error\":\"Product not found\"}");
                 return;
@@ -234,7 +284,33 @@ public class ProductService {
         }
     }
 
-    // Send JSON with status + content-type
+    // ---------- DB helpers ----------
+    private static boolean dbExistsById(Connection c, int id) throws SQLException {
+        try (PreparedStatement ps = c.prepareStatement("SELECT 1 FROM products WHERE id=?")) {
+            ps.setInt(1, id);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
+            }
+        }
+    }
+
+    private static Product dbGetById(Connection c, int id) throws SQLException {
+        try (PreparedStatement ps = c.prepareStatement(
+                "SELECT id, productname, price, quantity FROM products WHERE id=?")) {
+            ps.setInt(1, id);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.next()) return null;
+                return new Product(
+                        rs.getInt("id"),
+                        rs.getString("productname"),
+                        rs.getDouble("price"),
+                        rs.getInt("quantity")
+                );
+            }
+        }
+    }
+
+    // ---------- HTTP response helper ----------
     private static void sendJson(HttpExchange exchange, int status, String response) throws IOException {
         byte[] bytes = response.getBytes(StandardCharsets.UTF_8);
         exchange.getResponseHeaders().set("Content-Type", "application/json; charset=utf-8");
@@ -244,6 +320,7 @@ public class ProductService {
         }
     }
 
+    // ---------- Tiny JSON helpers ----------
     private static String getJsonString(String json, String key) {
         String pattern = "\"" + key + "\"";
         int k = json.indexOf(pattern);
@@ -296,4 +373,3 @@ public class ProductService {
         return json.substring(i, j);
     }
 }
-
