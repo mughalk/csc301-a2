@@ -10,6 +10,7 @@ STATUS: 200
 RECEIVED: {
     "id": 2000,
     "productname": "product2000",
+    "description": "This is product 2000",
     "price": 162.58 ,
     "quantity": 90
 }
@@ -24,6 +25,7 @@ STATUS: 200
 RECEIVED: {
     "id": 2001,
     "productname": "product2001",
+    "description": "This is product 2001",
     "price": 202.66 ,
     "quantity": 60
 }
@@ -38,6 +40,7 @@ STATUS: 200
 RECEIVED: {
     "id": 2002,
     "productname": "product2002",
+    "description": "This is product 2002",
     "price": 98.47 ,
     "quantity": 96
 }
@@ -52,6 +55,7 @@ STATUS: 200
 RECEIVED: {
     "id": 2003,
     "productname": "product2003",
+    "description": "This is product 2003",
     "price": 197.51 ,
     "quantity": 3
 }
@@ -66,6 +70,7 @@ STATUS: 200
 RECEIVED: {
     "id": 2004,
     "productname": "product2004",
+    "description": "This is product 2004",
     "price": 98.61 ,
     "quantity": 26
 }
@@ -80,6 +85,7 @@ STATUS: 200
 RECEIVED: {
     "id": 2005,
     "productname": "product2005",
+    "description": "This is product 2005",
     "price": 152.7 ,
     "quantity": 34
 }
@@ -94,6 +100,7 @@ STATUS: 200
 RECEIVED: {
     "id": 2006,
     "productname": "product2006",
+    "description": "This is product 2006",
     "price": 269.23 ,
     "quantity": 89
 }
@@ -108,6 +115,7 @@ STATUS: 200
 RECEIVED: {
     "id": 2007,
     "productname": "product2007",
+    "description": "This is product 2007",
     "price": 79.18 ,
     "quantity": 89
 }
@@ -122,6 +130,7 @@ STATUS: 200
 RECEIVED: {
     "id": 2008,
     "productname": "product2008",
+    "description": "This is product 2008",
     "price": 77.68 ,
     "quantity": 79
 }
@@ -136,6 +145,7 @@ STATUS: 200
 RECEIVED: {
     "id": 2009,
     "productname": "product2009",
+    "description": "This is product 2009",
     "price": 283.03 ,
     "quantity": 71
 }
@@ -150,6 +160,7 @@ STATUS: 200
 RECEIVED: {
     "id": 2010,
     "productname": "product2010",
+    "description": "This is product 2010",
     "price": 37.32 ,
     "quantity": 75
 }
@@ -164,6 +175,7 @@ STATUS: 200
 RECEIVED: {
     "id": 2011,
     "productname": "product2011",
+    "description": "This is product 2011",
     "price": 8.5 ,
     "quantity": 28
 }
@@ -178,6 +190,7 @@ STATUS: 200
 RECEIVED: {
     "id": 2012,
     "productname": "product2012",
+    "description": "This is product 2012",
     "price": 173.31 ,
     "quantity": 74
 }
@@ -192,6 +205,7 @@ STATUS: 200
 RECEIVED: {
     "id": 2013,
     "productname": "product2013",
+    "description": "This is product 2013",
     "price": 139.85 ,
     "quantity": 97
 }
@@ -206,6 +220,7 @@ STATUS: 200
 RECEIVED: {
     "id": 2014,
     "productname": "product2014",
+    "description": "This is product 2014",
     "price": 157.0 ,
     "quantity": 35
 }
@@ -220,6 +235,7 @@ STATUS: 200
 RECEIVED: {
     "id": 2015,
     "productname": "product2015",
+    "description": "This is product 2015",
     "price": 175.73 ,
     "quantity": 35
 }
@@ -234,6 +250,7 @@ STATUS: 200
 RECEIVED: {
     "id": 2016,
     "productname": "product2016",
+    "description": "This is product 2016",
     "price": 52.38 ,
     "quantity": 19
 }
@@ -248,6 +265,7 @@ STATUS: 200
 RECEIVED: {
     "id": 2017,
     "productname": "product2017",
+    "description": "This is product 2017",
     "price": 221.85 ,
     "quantity": 82
 }
@@ -262,6 +280,7 @@ STATUS: 200
 RECEIVED: {
     "id": 2018,
     "productname": "product2018",
+    "description": "This is product 2018",
     "price": 111.86 ,
     "quantity": 14
 }
@@ -276,6 +295,7 @@ STATUS: 200
 RECEIVED: {
     "id": 2019,
     "productname": "product2019",
+    "description": "This is product 2019",
     "price": 209.2 ,
     "quantity": 51
 }
@@ -295,13 +315,8 @@ ERROR BODY: {"error":"Field cannot be empty: productname"}
 TYPE: POST (create)
 URL: http://localhost:8081/product
 SENT: {"command": "create", "id": 2025, "productname": "product2025", "price": 2.3, "quantity": 4}
-STATUS: 200
-RECEIVED: {
-    "id": 2025,
-    "productname": "product2025",
-    "price": 2.3 ,
-    "quantity": 4
-}
+STATUS: 400
+ERROR BODY: {"error":"Field cannot be empty: description"}
 
 ----------------------------------------
 
@@ -309,13 +324,8 @@ RECEIVED: {
 TYPE: POST (create)
 URL: http://localhost:8081/product
 SENT: {"command": "create", "id": 2026, "productname": "product2026", "description": "This is product 2026", "price": 5.0, "quantity": 0.5597}
-STATUS: 200
-RECEIVED: {
-    "id": 2026,
-    "productname": "product2026",
-    "price": 5.0 ,
-    "quantity": 0
-}
+STATUS: 400
+ERROR BODY: {"error":"Missing or invalid required field: quantity"}
 
 ----------------------------------------
 
@@ -354,6 +364,7 @@ STATUS: 200
 RECEIVED: {
     "id": 2001,
     "productname": "product2001-update",
+    "description": "This is product 2001 version 2",
     "price": 199.99 ,
     "quantity": 100
 }
@@ -365,7 +376,7 @@ TYPE: POST (update)
 URL: http://localhost:8081/product
 SENT: {"command": "update", "productname": "product 2002 invalid update"}
 STATUS: 400
-ERROR BODY: {"error":"Missing required field: id"}
+ERROR BODY: {"error":"Missing or invalid required field: id"}
 
 ----------------------------------------
 
@@ -374,7 +385,7 @@ TYPE: POST (update)
 URL: http://localhost:8081/product
 SENT: {"command": "update", "id": 2003, "description": ""}
 STATUS: 400
-ERROR BODY: {"error":"No updatable fields provided"}
+ERROR BODY: {"error":"Field must not be blank: description"}
 
 ----------------------------------------
 
@@ -383,7 +394,7 @@ TYPE: POST (update)
 URL: http://localhost:8081/product
 SENT: {"command": "update", "id": 2004, "price": -6.0}
 STATUS: 400
-ERROR BODY: {"error":"Field must be >= 0: price"}
+ERROR BODY: {"error":"Field must not be blank: description"}
 
 ----------------------------------------
 
@@ -392,7 +403,7 @@ TYPE: POST (update)
 URL: http://localhost:8081/product
 SENT: {"command": "update", "id": 2005, "quantity": -6}
 STATUS: 400
-ERROR BODY: {"error":"Field must be >= 0: quantity"}
+ERROR BODY: {"error":"Field must not be blank: description"}
 
 ----------------------------------------
 
@@ -400,13 +411,8 @@ ERROR BODY: {"error":"Field must be >= 0: quantity"}
 TYPE: POST (update)
 URL: http://localhost:8081/product
 SENT: {"command": "update", "id": 2006, "quantity": 0.6}
-STATUS: 200
-RECEIVED: {
-    "id": 2006,
-    "productname": "product2006",
-    "price": 269.23 ,
-    "quantity": 0
-}
+STATUS: 400
+ERROR BODY: {"error":"No updatable fields provided"}
 
 ----------------------------------------
 
@@ -414,8 +420,8 @@ RECEIVED: {
 TYPE: POST (update)
 URL: http://localhost:8081/product
 SENT: {"command": "update", "id": 10000, "description": "this product doesn't exist ;)"}
-STATUS: 400
-ERROR BODY: {"error":"No updatable fields provided"}
+STATUS: 404
+ERROR BODY: {"error":"Product not found"}
 
 ----------------------------------------
 
@@ -462,6 +468,7 @@ STATUS: 200
 RECEIVED: {
     "id": 2001,
     "productname": "product2001-update",
+    "description": "This is product 2001 version 2",
     "price": 199.99 ,
     "quantity": 100
 }
@@ -475,6 +482,7 @@ STATUS: 200
 RECEIVED: {
     "id": 2010,
     "productname": "product2010",
+    "description": "This is product 2010",
     "price": 37.32 ,
     "quantity": 75
 }

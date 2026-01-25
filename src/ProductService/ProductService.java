@@ -8,6 +8,7 @@ import com.google.gson.JsonParser;
 import com.google.gson.JsonSyntaxException;
 
 import java.io.*;
+import java.math.BigDecimal;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.sql.*;
@@ -21,12 +22,14 @@ public class ProductService {
     public static class Product {
         int id;
         String productname;
+        String description; // required; cannot be blank
         double price;
         int quantity;
 
-        Product(int id, String productname, double price, int quantity) {
+        Product(int id, String productname, String description, double price, int quantity) {
             this.id = id;
             this.productname = productname;
+            this.description = (description == null) ? "" : description;
             this.price = price;
             this.quantity = quantity;
         }
@@ -35,6 +38,7 @@ public class ProductService {
             return "{\n" +
                     "    \"id\": " + id + ",\n" +
                     "    \"productname\": \"" + escape(productname) + "\",\n" +
+                    "    \"description\": \"" + escape(description) + "\",\n" +
                     "    \"price\": " + price + " ,\n" +
                     "    \"quantity\": " + quantity + "\n" +
                     "}";
@@ -53,8 +57,8 @@ public class ProductService {
 
     private static void requireNonNull(HttpExchange ex, Object value, String field) throws IOException {
         if (value == null) {
-            sendJson(ex, 400, "{\"error\":\"Missing required field: " + field + "\"}");
-            throw new IllegalArgumentException("Missing " + field);
+            sendJson(ex, 400, "{\"error\":\"Missing or invalid required field: " + field + "\"}");
+            throw new IllegalArgumentException("Missing/invalid " + field);
         }
     }
 
@@ -89,14 +93,14 @@ public class ProductService {
         }
     }
 
-    // For PATCH-like update: validate only if provided
-    private static void validateOptionalNonBlank(HttpExchange ex, String value, String field) throws IOException {
-        if (value != null && isBlank(value)) {
-            sendJson(ex, 400, "{\"error\":\"Field cannot be empty: " + field + "\"}");
-            throw new IllegalArgumentException("Empty " + field);
+    private static void validateOptionalNonBlank(HttpExchange ex, String description, String field) throws IOException {
+        if (isBlank(description) || description.strip() == "" ) {
+            sendJson(ex, 400, "{\"error\":\"Field must not be blank: " + field + "\"}");
+            throw new IllegalArgumentException("Invalid " + field);
         }
     }
 
+    // For PATCH-like update: validate only if provided
     private static void validateOptionalNonNegativeInt(HttpExchange ex, Integer value, String field) throws IOException {
         if (value != null && value < 0) {
             sendJson(ex, 400, "{\"error\":\"Field must be >= 0: " + field + "\"}");
@@ -150,7 +154,7 @@ public class ProductService {
                 JsonObject json = parseJsonObject(exchange, body);
 
                 String command = jString(json, "command");
-                Integer id = jInt(json, "id");
+                Integer id = jIntStrict(json, "id");  // MUST be integer
 
                 requireNonBlank(exchange, command, "command");
                 requirePositiveInt(exchange, id, "id");
@@ -170,11 +174,13 @@ public class ProductService {
 
         private void handleCreate(HttpExchange exchange, JsonObject json, int id) throws IOException, SQLException {
             String productname = jString(json, "productname");
+            String description = jString(json, "description"); // REQUIRED; cannot be blank
             Double price = jDouble(json, "price");
-            Integer quantity = jInt(json, "quantity");
+            Integer quantity = jIntStrict(json, "quantity");   // MUST be integer
 
             try {
                 requireNonBlank(exchange, productname, "productname");
+                requireNonBlank(exchange, description, "description");
                 requireNonNegativeDouble(exchange, price, "price");
                 requireNonNegativeInt(exchange, quantity, "quantity");
             } catch (IllegalArgumentException ignored) {
@@ -188,30 +194,38 @@ public class ProductService {
                 }
 
                 try (PreparedStatement ps = c.prepareStatement(
-                        "INSERT INTO products(id, productname, price, quantity) VALUES(?,?,?,?)")) {
+                        "INSERT INTO products(id, productname, description, price, quantity) VALUES(?,?,?,?,?)")) {
                     ps.setInt(1, id);
                     ps.setString(2, productname);
-                    ps.setDouble(3, price);
-                    ps.setInt(4, quantity);
+                    ps.setString(3, description);
+                    ps.setDouble(4, price);
+                    ps.setInt(5, quantity);
                     ps.executeUpdate();
                 }
             }
 
-            sendJson(exchange, 200, new Product(id, productname, price, quantity).toJson());
+            sendJson(exchange, 200, new Product(id, productname, description, price, quantity).toJson());
         }
 
         private void handleUpdate(HttpExchange exchange, JsonObject json, int id) throws IOException, SQLException {
-            String productname = jString(json, "productname");
-            Double price = jDouble(json, "price");
-            Integer quantity = jInt(json, "quantity");
+            String productname = jString(json, "productname");     // optional
+            String description = jString(json, "description");     // optional; if provided cannot be blank
+            Double price = jDouble(json, "price");                 // optional
+            Integer quantity = jIntStrict(json, "quantity");       // optional; if present MUST be integer
 
             try {
-                if (productname == null && price == null && quantity == null) {
+                if (productname == null && description == null && price == null && quantity == null) {
                     sendJson(exchange, 400, "{\"error\":\"No updatable fields provided\"}");
                     return;
                 }
 
-                validateOptionalNonBlank(exchange, productname, "productname");
+                // productname can be updated but cannot be blank if provided
+                if (productname != null && isBlank(productname)) {
+                    sendJson(exchange, 400, "{\"error\":\"Field cannot be empty: productname\"}");
+                    return;
+                }
+
+                validateOptionalNonBlank(exchange, description, "description");
                 validateOptionalNonNegativeDouble(exchange, price, "price");
                 validateOptionalNonNegativeInt(exchange, quantity, "quantity");
             } catch (IllegalArgumentException ignored) {
@@ -227,15 +241,17 @@ public class ProductService {
                 }
 
                 if (productname != null) existing.productname = productname;
+                if (description != null) existing.description = description; // can be ""
                 if (price != null) existing.price = price;
                 if (quantity != null) existing.quantity = quantity;
 
                 try (PreparedStatement ps = c.prepareStatement(
-                        "UPDATE products SET productname=?, price=?, quantity=? WHERE id=?")) {
+                        "UPDATE products SET productname=?, description=?, price=?, quantity=? WHERE id=?")) {
                     ps.setString(1, existing.productname);
-                    ps.setDouble(2, existing.price);
-                    ps.setInt(3, existing.quantity);
-                    ps.setInt(4, id);
+                    ps.setString(2, existing.description == null ? "" : existing.description);
+                    ps.setDouble(3, existing.price);
+                    ps.setInt(4, existing.quantity);
+                    ps.setInt(5, id);
                     ps.executeUpdate();
                 }
 
@@ -246,9 +262,10 @@ public class ProductService {
         }
 
         private void handleDelete(HttpExchange exchange, JsonObject json, int id) throws IOException, SQLException {
+            // NOTE: description is intentionally NOT required for deletion
             String productname = jString(json, "productname");
             Double price = jDouble(json, "price");
-            Integer quantity = jInt(json, "quantity");
+            Integer quantity = jIntStrict(json, "quantity"); // MUST be integer
 
             try {
                 requireNonBlank(exchange, productname, "productname");
@@ -358,13 +375,33 @@ public class ProductService {
     private static String jString(JsonObject o, String key) {
         JsonElement e = o.get(key);
         if (e == null || e.isJsonNull()) return null;
-        return e.getAsString();
+        try { return e.getAsString(); } catch (Exception ignore) { return null; }
     }
 
-    private static Integer jInt(JsonObject o, String key) {
+    /**
+     * Strict integer parsing:
+     * - returns null if missing/null
+     * - returns null if present but not an integer (e.g., 1.2, "5", "abc")
+     */
+    private static Integer jIntStrict(JsonObject o, String key) {
         JsonElement e = o.get(key);
         if (e == null || e.isJsonNull()) return null;
-        try { return e.getAsInt(); } catch (Exception ignore) { return null; }
+
+        // Must be a JSON number (not a string like "2")
+        if (!e.isJsonPrimitive() || !e.getAsJsonPrimitive().isNumber()) return null;
+
+        try {
+            // Use BigDecimal so we can reject fractional values safely.
+            BigDecimal bd = e.getAsBigDecimal();
+            bd = bd.stripTrailingZeros();
+            if (bd.scale() > 0) return null; // fractional
+            // Also reject values outside int range
+            if (bd.compareTo(BigDecimal.valueOf(Integer.MIN_VALUE)) < 0) return null;
+            if (bd.compareTo(BigDecimal.valueOf(Integer.MAX_VALUE)) > 0) return null;
+            return bd.intValueExact();
+        } catch (Exception ignore) {
+            return null;
+        }
     }
 
     private static Double jDouble(JsonObject o, String key) {

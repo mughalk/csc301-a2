@@ -17,10 +17,20 @@ public class DatabaseManager {
                     "CREATE TABLE IF NOT EXISTS products (" +
                             "id INTEGER PRIMARY KEY," +
                             "productname TEXT NOT NULL," +
+                            "description TEXT NOT NULL DEFAULT 'N/A'," +
                             "price REAL NOT NULL," +
                             "quantity INTEGER NOT NULL" +
                             ")"
             );
+
+            // If the table already existed from an older version, ensure the new column exists.
+            // SQLite doesn't support "ADD COLUMN IF NOT EXISTS" reliably across versions, so we just try and ignore duplicates.
+            try {
+                st.executeUpdate("ALTER TABLE products ADD COLUMN description TEXT NOT NULL DEFAULT 'N/A'");
+            } catch (SQLException ignored) {
+                // likely: "duplicate column name: description"
+            }
+
         } catch (SQLException e) {
             throw new RuntimeException("Failed to initialize DB: " + e.getMessage(), e);
         }
@@ -41,13 +51,14 @@ public class DatabaseManager {
 
     public static ProductService.Product dbGetById(Connection c, int id) throws SQLException {
         try (PreparedStatement ps = c.prepareStatement(
-                "SELECT id, productname, price, quantity FROM products WHERE id=?")) {
+                "SELECT id, productname, description, price, quantity FROM products WHERE id=?")) {
             ps.setInt(1, id);
             try (ResultSet rs = ps.executeQuery()) {
                 if (!rs.next()) return null;
                 return new ProductService.Product(
                         rs.getInt("id"),
                         rs.getString("productname"),
+                        rs.getString("description"),
                         rs.getDouble("price"),
                         rs.getInt("quantity")
                 );
