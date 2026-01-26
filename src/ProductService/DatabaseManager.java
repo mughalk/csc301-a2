@@ -5,30 +5,30 @@ public class DatabaseManager {
     // Creates products.db in the working directory you run from
     private static final String DB_URL = "jdbc:sqlite:products.db";
 
-    public static void initDb() {
+    // Match UserService naming
+    public static void initialize() {
         try (Connection c = DriverManager.getConnection(DB_URL);
              Statement st = c.createStatement()) {
 
-            // Recommended for concurrent reads/writes:
             st.execute("PRAGMA journal_mode=WAL;");
             st.execute("PRAGMA foreign_keys=ON;");
+            st.execute("PRAGMA busy_timeout=5000;"); // helps under concurrency
 
             st.executeUpdate(
                     "CREATE TABLE IF NOT EXISTS products (" +
                             "id INTEGER PRIMARY KEY," +
-                            "productname TEXT NOT NULL," +
-                            "description TEXT NOT NULL DEFAULT 'N/A'," +
+                            "name TEXT NOT NULL," +
+                            "description TEXT NOT NULL," +
                             "price REAL NOT NULL," +
                             "quantity INTEGER NOT NULL" +
                             ")"
             );
 
-            // If the table already existed from an older version, ensure the new column exists.
-            // SQLite doesn't support "ADD COLUMN IF NOT EXISTS" reliably across versions, so we just try and ignore duplicates.
+            // If table existed from an older version, ensure description exists
             try {
                 st.executeUpdate("ALTER TABLE products ADD COLUMN description TEXT NOT NULL DEFAULT 'N/A'");
             } catch (SQLException ignored) {
-                // likely: "duplicate column name: description"
+                // duplicate column, ok
             }
 
         } catch (SQLException e) {
@@ -36,12 +36,13 @@ public class DatabaseManager {
         }
     }
 
-    public static Connection openConn() throws SQLException {
+    private static Connection openConn() throws SQLException {
         return DriverManager.getConnection(DB_URL);
     }
 
-    public static boolean dbExistsById(Connection c, int id) throws SQLException {
-        try (PreparedStatement ps = c.prepareStatement("SELECT 1 FROM products WHERE id=?")) {
+    public static boolean productExists(int id) throws SQLException {
+        try (Connection c = openConn();
+             PreparedStatement ps = c.prepareStatement("SELECT 1 FROM products WHERE id=?")) {
             ps.setInt(1, id);
             try (ResultSet rs = ps.executeQuery()) {
                 return rs.next();
@@ -49,19 +50,73 @@ public class DatabaseManager {
         }
     }
 
-    public static ProductService.Product dbGetById(Connection c, int id) throws SQLException {
-        try (PreparedStatement ps = c.prepareStatement(
-                "SELECT id, productname, description, price, quantity FROM products WHERE id=?")) {
+    public static ProductService.Product getProduct(int id) throws SQLException {
+        try (Connection c = openConn();
+             PreparedStatement ps = c.prepareStatement(
+                     "SELECT id, name, description, price, quantity FROM products WHERE id=?")) {
             ps.setInt(1, id);
             try (ResultSet rs = ps.executeQuery()) {
                 if (!rs.next()) return null;
                 return new ProductService.Product(
                         rs.getInt("id"),
-                        rs.getString("productname"),
+                        rs.getString("name"),
                         rs.getString("description"),
                         rs.getDouble("price"),
                         rs.getInt("quantity")
                 );
+            }
+        }
+    }
+
+    // returns false if id already exists
+    public static boolean createProduct(ProductService.Product p) throws SQLException {
+        try (Connection c = openConn()) {
+            if (productExists(p.id)) return false;
+
+            try (PreparedStatement ps = c.prepareStatement(
+                    "INSERT INTO products(id, name, description, price, quantity) VALUES(?,?,?,?,?)")) {
+                ps.setInt(1, p.id);
+                ps.setString(2, p.name);
+                ps.setString(3, p.description);
+                ps.setDouble(4, p.price);
+                ps.setInt(5, p.quantity);
+                ps.executeUpdate();
+                return true;
+            }
+        }
+    }
+
+    // returns false if id not found
+    public static boolean updateProduct(ProductService.Product p) throws SQLException {
+        try (Connection c = openConn();
+             PreparedStatement ps = c.prepareStatement(
+                     "UPDATE products SET name=?, description=?, price=?, quantity=? WHERE id=?")) {
+            ps.setString(1, p.name);
+            ps.setString(2, p.description);
+            ps.setDouble(3, p.price);
+            ps.setInt(4, p.quantity);
+            ps.setInt(5, p.id);
+
+            int affected = ps.executeUpdate();
+            return affected > 0;
+        }
+    }
+
+    public enum DeleteResult { NOT_FOUND, MISMATCH, DELETED }
+
+    public static DeleteResult deleteProduct(int id, String name, double price, int quantity) throws SQLException {
+        try (Connection c = openConn()) {
+            if (!productExists(id)) return DeleteResult.NOT_FOUND;
+
+            try (PreparedStatement ps = c.prepareStatement(
+                    "DELETE FROM products WHERE id=? AND name=? AND price=? AND quantity=?")) {
+                ps.setInt(1, id);
+                ps.setString(2, name);
+                ps.setDouble(3, price);
+                ps.setInt(4, quantity);
+
+                int affected = ps.executeUpdate();
+                return (affected > 0) ? DeleteResult.DELETED : DeleteResult.MISMATCH;
             }
         }
     }

@@ -11,24 +11,25 @@ import java.io.*;
 import java.math.BigDecimal;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
-import java.sql.*;
+import java.sql.SQLException;
 import java.util.concurrent.Executors;
 
 public class ProductService {
 
-    private static final int PORT = 8081;
+    // IMPORTANT: UserService.java uses 8081. Avoid collision.
+    private static final int PORT = 8082;
 
     // ---------- Model ----------
     public static class Product {
         int id;
-        String productname;
-        String description; // required; cannot be blank
+        String name;        // <-- renamed
+        String description;
         double price;
         int quantity;
 
-        Product(int id, String productname, String description, double price, int quantity) {
+        Product(int id, String name, String description, double price, int quantity) {
             this.id = id;
-            this.productname = productname;
+            this.name = (name == null) ? "" : name;
             this.description = (description == null) ? "" : description;
             this.price = price;
             this.quantity = quantity;
@@ -37,14 +38,14 @@ public class ProductService {
         String toJson() {
             return "{\n" +
                     "    \"id\": " + id + ",\n" +
-                    "    \"productname\": \"" + escape(productname) + "\",\n" +
+                    "    \"name\": \"" + escape(name) + "\",\n" +          // <-- output name
                     "    \"description\": \"" + escape(description) + "\",\n" +
                     "    \"price\": " + price + " ,\n" +
                     "    \"quantity\": " + quantity + "\n" +
                     "}";
         }
 
-        private static String escape(String s) {
+    private static String escape(String s) {
             if (s == null) return "";
             return s.replace("\\", "\\\\").replace("\"", "\\\"");
         }
@@ -93,14 +94,14 @@ public class ProductService {
         }
     }
 
-    private static void validateOptionalNonBlank(HttpExchange ex, String description, String field) throws IOException {
-        if (isBlank(description) || description.strip() == "" ) {
+    // For PATCH-like update: validate only if provided
+    private static void validateOptionalNonBlank(HttpExchange ex, String value, String field) throws IOException {
+        if (value != null && isBlank(value)) {
             sendJson(ex, 400, "{\"error\":\"Field must not be blank: " + field + "\"}");
             throw new IllegalArgumentException("Invalid " + field);
         }
     }
 
-    // For PATCH-like update: validate only if provided
     private static void validateOptionalNonNegativeInt(HttpExchange ex, Integer value, String field) throws IOException {
         if (value != null && value < 0) {
             sendJson(ex, 400, "{\"error\":\"Field must be >= 0: " + field + "\"}");
@@ -117,7 +118,7 @@ public class ProductService {
 
     // ---------- Main ----------
     public static void main(String[] args) throws IOException {
-        DatabaseManager.initDb();
+        DatabaseManager.initialize();
 
         HttpServer server = HttpServer.create(new InetSocketAddress(PORT), 0);
         server.setExecutor(Executors.newFixedThreadPool(20));
@@ -148,7 +149,7 @@ public class ProductService {
         }
 
         // -------- POST /product --------
-        private void handlePost(HttpExchange exchange) throws IOException, SQLException {
+        private void handlePost(HttpExchange exchange) throws IOException {
             try {
                 String body = readBody(exchange);
                 JsonObject json = parseJsonObject(exchange, body);
@@ -172,14 +173,14 @@ public class ProductService {
             }
         }
 
-        private void handleCreate(HttpExchange exchange, JsonObject json, int id) throws IOException, SQLException {
-            String productname = jString(json, "productname");
+        private void handleCreate(HttpExchange exchange, JsonObject json, int id) throws IOException {
+            String name = jString(json, "name");
             String description = jString(json, "description"); // REQUIRED; cannot be blank
             Double price = jDouble(json, "price");
             Integer quantity = jIntStrict(json, "quantity");   // MUST be integer
 
             try {
-                requireNonBlank(exchange, productname, "productname");
+                requireNonBlank(exchange, name, "name");
                 requireNonBlank(exchange, description, "description");
                 requireNonNegativeDouble(exchange, price, "price");
                 requireNonNegativeInt(exchange, quantity, "quantity");
@@ -187,41 +188,36 @@ public class ProductService {
                 return;
             }
 
-            try (Connection c = DatabaseManager.openConn()) {
-                if (DatabaseManager.dbExistsById(c, id)) {
+            Product p = new Product(id, name, description, price, quantity);
+
+            try {
+                boolean created = DatabaseManager.createProduct(p);
+                if (!created) {
                     sendJson(exchange, 409, "{\"error\":\"Product id already exists\"}");
                     return;
                 }
-
-                try (PreparedStatement ps = c.prepareStatement(
-                        "INSERT INTO products(id, productname, description, price, quantity) VALUES(?,?,?,?,?)")) {
-                    ps.setInt(1, id);
-                    ps.setString(2, productname);
-                    ps.setString(3, description);
-                    ps.setDouble(4, price);
-                    ps.setInt(5, quantity);
-                    ps.executeUpdate();
-                }
+            } catch (SQLException e) {
+                sendJson(exchange, 500, "{\"error\":\"Database error\"}");
+                return;
             }
 
-            sendJson(exchange, 200, new Product(id, productname, description, price, quantity).toJson());
+            sendJson(exchange, 200, p.toJson());
         }
 
-        private void handleUpdate(HttpExchange exchange, JsonObject json, int id) throws IOException, SQLException {
-            String productname = jString(json, "productname");     // optional
+        private void handleUpdate(HttpExchange exchange, JsonObject json, int id) throws IOException {
+            String name = jString(json, "name");     // optional
             String description = jString(json, "description");     // optional; if provided cannot be blank
             Double price = jDouble(json, "price");                 // optional
             Integer quantity = jIntStrict(json, "quantity");       // optional; if present MUST be integer
 
             try {
-                if (productname == null && description == null && price == null && quantity == null) {
+                if (name == null && description == null && price == null && quantity == null) {
                     sendJson(exchange, 400, "{\"error\":\"No updatable fields provided\"}");
                     return;
                 }
 
-                // productname can be updated but cannot be blank if provided
-                if (productname != null && isBlank(productname)) {
-                    sendJson(exchange, 400, "{\"error\":\"Field cannot be empty: productname\"}");
+                if (name != null && isBlank(name)) {
+                    sendJson(exchange, 400, "{\"error\":\"Field cannot be empty: name\"}");
                     return;
                 }
 
@@ -232,76 +228,65 @@ public class ProductService {
                 return;
             }
 
-            Product updated;
-            try (Connection c = DatabaseManager.openConn()) {
-                Product existing = DatabaseManager.dbGetById(c, id);
+            try {
+                Product existing = DatabaseManager.getProduct(id);
                 if (existing == null) {
                     sendJson(exchange, 404, "{\"error\":\"Product not found\"}");
                     return;
                 }
 
-                if (productname != null) existing.productname = productname;
-                if (description != null) existing.description = description; // can be ""
+                if (name != null) existing.name = name;
+                if (description != null) existing.description = description; // guaranteed nonblank
                 if (price != null) existing.price = price;
                 if (quantity != null) existing.quantity = quantity;
 
-                try (PreparedStatement ps = c.prepareStatement(
-                        "UPDATE products SET productname=?, description=?, price=?, quantity=? WHERE id=?")) {
-                    ps.setString(1, existing.productname);
-                    ps.setString(2, existing.description == null ? "" : existing.description);
-                    ps.setDouble(3, existing.price);
-                    ps.setInt(4, existing.quantity);
-                    ps.setInt(5, id);
-                    ps.executeUpdate();
+                boolean updated = DatabaseManager.updateProduct(existing);
+                if (!updated) {
+                    sendJson(exchange, 404, "{\"error\":\"Product not found\"}");
+                    return;
                 }
 
-                updated = existing;
+                sendJson(exchange, 200, existing.toJson());
+            } catch (SQLException e) {
+                sendJson(exchange, 500, "{\"error\":\"Database error\"}");
             }
-
-            sendJson(exchange, 200, updated.toJson());
         }
 
-        private void handleDelete(HttpExchange exchange, JsonObject json, int id) throws IOException, SQLException {
+        private void handleDelete(HttpExchange exchange, JsonObject json, int id) throws IOException {
             // NOTE: description is intentionally NOT required for deletion
-            String productname = jString(json, "productname");
+            String name = jName(json);
             Double price = jDouble(json, "price");
             Integer quantity = jIntStrict(json, "quantity"); // MUST be integer
 
             try {
-                requireNonBlank(exchange, productname, "productname");
+                requireNonBlank(exchange, name, "name");
                 requireNonNegativeDouble(exchange, price, "price");
                 requireNonNegativeInt(exchange, quantity, "quantity");
             } catch (IllegalArgumentException ignored) {
                 return;
             }
 
-            try (Connection c = DatabaseManager.openConn()) {
-                if (!DatabaseManager.dbExistsById(c, id)) {
+            try {
+                DatabaseManager.DeleteResult res =
+                        DatabaseManager.deleteProduct(id, name, price, quantity);
+
+                if (res == DatabaseManager.DeleteResult.NOT_FOUND) {
                     sendJson(exchange, 404, "{\"error\":\"Product not found\"}");
                     return;
                 }
-
-                int affected;
-                try (PreparedStatement ps = c.prepareStatement(
-                        "DELETE FROM products WHERE id=? AND productname=? AND price=? AND quantity=?")) {
-                    ps.setInt(1, id);
-                    ps.setString(2, productname);
-                    ps.setDouble(3, price);
-                    ps.setInt(4, quantity);
-                    affected = ps.executeUpdate();
-                }
-
-                if (affected == 0) {
+                if (res == DatabaseManager.DeleteResult.MISMATCH) {
                     sendJson(exchange, 401, "{\"error\":\"Delete failed: fields do not match\"}");
                     return;
                 }
-            }
 
-            sendJson(exchange, 200, "{\"status\":\"deleted\"}");
+                sendJson(exchange, 200, "{\"status\":\"deleted\"}");
+            } catch (SQLException e) {
+                sendJson(exchange, 500, "{\"error\":\"Database error\"}");
+            }
         }
 
         // -------- GET /product/<id> --------
-        private void handleGet(HttpExchange exchange) throws IOException, SQLException {
+        private void handleGet(HttpExchange exchange) throws IOException {
             String path = exchange.getRequestURI().getPath();
 
             if (path.equals("/product") || path.equals("/product/")) {
@@ -327,17 +312,16 @@ public class ProductService {
                 return;
             }
 
-            Product p;
-            try (Connection c = DatabaseManager.openConn()) {
-                p = DatabaseManager.dbGetById(c, id);
+            try {
+                Product p = DatabaseManager.getProduct(id);
+                if (p == null) {
+                    sendJson(exchange, 404, "{\"error\":\"Product not found\"}");
+                    return;
+                }
+                sendJson(exchange, 200, p.toJson());
+            } catch (SQLException e) {
+                sendJson(exchange, 500, "{\"error\":\"Database error\"}");
             }
-
-            if (p == null) {
-                sendJson(exchange, 404, "{\"error\":\"Product not found\"}");
-                return;
-            }
-
-            sendJson(exchange, 200, p.toJson());
         }
 
         private String readBody(HttpExchange exchange) throws IOException {
@@ -387,15 +371,12 @@ public class ProductService {
         JsonElement e = o.get(key);
         if (e == null || e.isJsonNull()) return null;
 
-        // Must be a JSON number (not a string like "2")
         if (!e.isJsonPrimitive() || !e.getAsJsonPrimitive().isNumber()) return null;
 
         try {
-            // Use BigDecimal so we can reject fractional values safely.
             BigDecimal bd = e.getAsBigDecimal();
             bd = bd.stripTrailingZeros();
             if (bd.scale() > 0) return null; // fractional
-            // Also reject values outside int range
             if (bd.compareTo(BigDecimal.valueOf(Integer.MIN_VALUE)) < 0) return null;
             if (bd.compareTo(BigDecimal.valueOf(Integer.MAX_VALUE)) > 0) return null;
             return bd.intValueExact();
@@ -409,4 +390,11 @@ public class ProductService {
         if (e == null || e.isJsonNull()) return null;
         try { return e.getAsDouble(); } catch (Exception ignore) { return null; }
     }
+
+    private static String jName(JsonObject o) {
+        String n = jString(o, "name");
+        if (n != null) return n;
+        return jString(o, "name"); // backward-compatible fallback
+    }
+
 }
