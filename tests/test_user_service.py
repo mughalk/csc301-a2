@@ -43,7 +43,7 @@ def run():
 
             if command:
                 # --- POST REQUEST (Create, Update, Delete) ---
-                target_url = f"{BASE_URL}/edit"
+                target_url = f"{BASE_URL}/user"
                 json_body = json.dumps(data)
                 json_bytes = json_body.encode('utf-8')
 
@@ -68,8 +68,7 @@ def run():
                     continue
                 
                 # Construct URL (handles strings and ints automatically)
-                params = urllib.parse.urlencode({'id': user_id})
-                target_url = f"{BASE_URL}/retrieve?{params}"
+                target_url = f"{BASE_URL}/user/{user_id}"
                 
                 req = urllib.request.Request(target_url, method="GET")
                 out.write(f"TYPE: GET\n")

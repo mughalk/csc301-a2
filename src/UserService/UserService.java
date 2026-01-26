@@ -92,6 +92,7 @@ public class UserService {
                         user.password = hashedPassword;
                         DatabaseManager.createUser(user.id, user.username, user.email, user.password);
                         // CHANGE: Return the user object as JSON instead of a text string
+                        user.command = null;
                         String jsonResponse = gson.toJson(user); 
                         sendResponse(exchange, 200, jsonResponse);
                         break;
@@ -298,3 +299,4 @@ public class UserService {
         Matcher matcher = VALID_EMAIL_ADDRESS_REGEX.matcher(emailStr);
         return matcher.matches();
     }
+}
