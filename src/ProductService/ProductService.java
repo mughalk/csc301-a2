@@ -1,3 +1,5 @@
+package ProductService;
+
 import com.sun.net.httpserver.HttpServer;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpExchange;
@@ -118,7 +120,7 @@ public class ProductService {
 
     // ---------- Main ----------
     public static void main(String[] args) throws IOException {
-        DatabaseManager.initialize();
+        ProductDatabaseManager.initialize();
 
         int port = PORT; // default port (8082)
         String ip = "127.0.0.1"; // default IP
@@ -215,7 +217,7 @@ public class ProductService {
             Product p = new Product(id, name, description, price, quantity);
 
             try {
-                boolean created = DatabaseManager.createProduct(p);
+                boolean created = ProductDatabaseManager.createProduct(p);
                 if (!created) {
                     sendJson(exchange, 409, "{\"error\":\"Product id already exists\"}");
                     return;
@@ -253,7 +255,7 @@ public class ProductService {
             }
 
             try {
-                Product existing = DatabaseManager.getProduct(id);
+                Product existing = ProductDatabaseManager.getProduct(id);
                 if (existing == null) {
                     sendJson(exchange, 404, "{\"error\":\"Product not found\"}");
                     return;
@@ -264,7 +266,7 @@ public class ProductService {
                 if (price != null) existing.price = price;
                 if (quantity != null) existing.quantity = quantity;
 
-                boolean updated = DatabaseManager.updateProduct(existing);
+                boolean updated = ProductDatabaseManager.updateProduct(existing);
                 if (!updated) {
                     sendJson(exchange, 404, "{\"error\":\"Product not found\"}");
                     return;
@@ -291,14 +293,14 @@ public class ProductService {
             }
 
             try {
-                DatabaseManager.DeleteResult res =
-                        DatabaseManager.deleteProduct(id, name, price, quantity);
+                ProductDatabaseManager.DeleteResult res =
+                        ProductDatabaseManager.deleteProduct(id, name, price, quantity);
 
-                if (res == DatabaseManager.DeleteResult.NOT_FOUND) {
+                if (res == ProductDatabaseManager.DeleteResult.NOT_FOUND) {
                     sendJson(exchange, 404, "{\"error\":\"Product not found\"}");
                     return;
                 }
-                if (res == DatabaseManager.DeleteResult.MISMATCH) {
+                if (res == ProductDatabaseManager.DeleteResult.MISMATCH) {
                     sendJson(exchange, 401, "{\"error\":\"Delete failed: fields do not match\"}");
                     return;
                 }
@@ -337,7 +339,7 @@ public class ProductService {
             }
 
             try {
-                Product p = DatabaseManager.getProduct(id);
+                Product p = ProductDatabaseManager.getProduct(id);
                 if (p == null) {
                     sendJson(exchange, 404, "{\"error\":\"Product not found\"}");
                     return;
