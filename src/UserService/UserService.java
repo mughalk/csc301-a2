@@ -322,4 +322,13 @@ public class UserService {
         Matcher matcher = VALID_EMAIL_ADDRESS_REGEX.matcher(emailStr);
         return matcher.matches();
     }
+
+    // --- USER DATA CLASS ---
+    static class UserData {
+        public int id;
+        public String username;
+        public String email;
+        public String password;
+        public String command;
+    }
 }
