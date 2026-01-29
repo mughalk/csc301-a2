@@ -120,12 +120,36 @@ public class ProductService {
     public static void main(String[] args) throws IOException {
         DatabaseManager.initialize();
 
-        HttpServer server = HttpServer.create(new InetSocketAddress(PORT), 0);
+        int port = PORT; // default port (8082)
+        String ip = "127.0.0.1"; // default IP
+
+        // Load config from file if provided
+        if (args.length > 0) {
+            try {
+                String configContent = new String(java.nio.file.Files.readAllBytes(java.nio.file.Paths.get(args[0])), StandardCharsets.UTF_8);
+                com.google.gson.Gson gson = new com.google.gson.Gson();
+                com.google.gson.JsonObject config = gson.fromJson(configContent, com.google.gson.JsonObject.class);
+                com.google.gson.JsonObject productConfig = config.getAsJsonObject("ProductService");
+                if (productConfig != null) {
+                    if (productConfig.has("port")) {
+                        port = productConfig.get("port").getAsInt();
+                    }
+                    if (productConfig.has("ip")) {
+                        ip = productConfig.get("ip").getAsString();
+                    }
+                }
+            } catch (Exception e) {
+                System.err.println("Failed to load config: " + e.getMessage());
+                System.err.println("Using default port " + port);
+            }
+        }
+
+        HttpServer server = HttpServer.create(new InetSocketAddress(ip, port), 0);
         server.setExecutor(Executors.newFixedThreadPool(20));
         server.createContext("/product", new ProductHandler());
         server.start();
 
-        System.out.println("ProductService started on port " + PORT);
+        System.out.println("ProductService started on " + ip + ":" + port);
         System.out.println("SQLite DB: products.db");
     }
 

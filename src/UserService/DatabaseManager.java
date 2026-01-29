@@ -1,15 +1,11 @@
 import java.sql.*;
-import java.util.ArrayList;
-import java.util.List;
 
 public class DatabaseManager {
-    private static final String DB_URL = "jdbc:postgresql://db.qvmekyovznxapjzhyudt.supabase.co:5432/postgres?sslmode=require";
-    private static final String DB_USER = "postgres"; 
-    private static final String DB_PASSWORD = "HmNUB18zTR4Fjjqc";
+    private static final String DB_URL = "jdbc:sqlite:users.db";
 
     // --- Singleton Connection ---
     public static Connection connect() throws SQLException {
-        return DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
+        return DriverManager.getConnection(DB_URL);
     }
 
     // --- Initialization ---
@@ -21,7 +17,7 @@ public class DatabaseManager {
                      "password TEXT)";
         try (Connection conn = connect(); Statement stmt = conn.createStatement()) {
             stmt.execute(sql);
-            System.out.println("Database initialized (connected to Postgres).");
+            System.out.println("Database initialized (SQLite).");
         } catch (SQLException e) {
             e.printStackTrace();
         }

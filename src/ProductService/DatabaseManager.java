@@ -2,13 +2,11 @@ import java.sql.*;
 
 public class DatabaseManager {
 
-    private static final String DB_URL = "jdbc:postgresql://db.qvmekyovznxapjzhyudt.supabase.co:5432/postgres?sslmode=require";
-    private static final String DB_USER = "postgres";
-    private static final String DB_PASSWORD = "HmNUB18zTR4Fjjqc";
+    private static final String DB_URL = "jdbc:sqlite:products.db";
 
     // Match UserService naming
     public static void initialize() {
-        try (Connection c = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
+        try (Connection c = DriverManager.getConnection(DB_URL);
              Statement st = c.createStatement()) {
 
             st.executeUpdate(
@@ -16,7 +14,7 @@ public class DatabaseManager {
                             "id INTEGER PRIMARY KEY," +
                             "name TEXT NOT NULL," +
                             "description TEXT NOT NULL," +
-                            "price DOUBLE PRECISION NOT NULL," +
+                            "price DOUBLE NOT NULL," +
                             "quantity INTEGER NOT NULL" +
                             ")"
             );
@@ -34,7 +32,7 @@ public class DatabaseManager {
     }
 
     private static Connection openConn() throws SQLException {
-        return DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
+        return DriverManager.getConnection(DB_URL);
     }
 
     public static boolean productExists(int id) throws SQLException {

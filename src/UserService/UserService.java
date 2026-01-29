@@ -27,14 +27,37 @@ public class UserService {
         // 1. Initialize DB before server starts
         DatabaseManager.initialize();
 
-        int port = 8081;
-        HttpServer server = HttpServer.create(new InetSocketAddress(port), 0);
+        int port = 8081; // default port
+        String ip = "127.0.0.1"; // default IP
+
+        // Load config from file if provided
+        if (args.length > 0) {
+            try {
+                String configContent = new String(java.nio.file.Files.readAllBytes(java.nio.file.Paths.get(args[0])), StandardCharsets.UTF_8);
+                Gson gson = new Gson();
+                com.google.gson.JsonObject config = gson.fromJson(configContent, com.google.gson.JsonObject.class);
+                com.google.gson.JsonObject userConfig = config.getAsJsonObject("UserService");
+                if (userConfig != null) {
+                    if (userConfig.has("port")) {
+                        port = userConfig.get("port").getAsInt();
+                    }
+                    if (userConfig.has("ip")) {
+                        ip = userConfig.get("ip").getAsString();
+                    }
+                }
+            } catch (Exception e) {
+                System.err.println("Failed to load config: " + e.getMessage());
+                System.err.println("Using default port " + port);
+            }
+        }
+
+        HttpServer server = HttpServer.create(new InetSocketAddress(ip, port), 0);
         server.setExecutor(Executors.newFixedThreadPool(20));
 
         server.createContext("/user", new UserHandler());
 
         server.start();
-        System.out.println("Server started on port " + port);
+        System.out.println("Server started on " + ip + ":" + port);
     }
 
     // --- HANDLER FOR /user (Handles both POST and GET) ---
