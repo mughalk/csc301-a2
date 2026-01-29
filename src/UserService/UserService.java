@@ -127,7 +127,7 @@ public class UserService {
                         }
 
                         // 1. Fetch the CURRENT database state
-                        UserData existingUser = DatabaseManager.getUser(user.id);
+                        UserData existingUser = convertToUserData(DatabaseManager.getUser(user.id));
                         if (existingUser == null) {
                             sendResponse(exchange, 404, "{}"); // user id not found
                             return;
@@ -189,7 +189,7 @@ public class UserService {
                             sendResponse(exchange, 400, "{}"); // invalid or missing email
                             return;
                         }
-                        UserData dbUser = DatabaseManager.getUser(user.id);
+                        UserData dbUser = convertToUserData(DatabaseManager.getUser(user.id));
                         if (dbUser == null) {
                             sendResponse(exchange, 404, "{}"); // user not found
                             return;
@@ -241,7 +241,7 @@ public class UserService {
                 int id = Integer.parseInt(segments[segments.length - 1]);
                 
                 // 2. Fetch User
-                UserData user = DatabaseManager.getUser(id);
+                UserData user = convertToUserData(DatabaseManager.getUser(id));
 
                 if (user != null) {
                     Gson gson = new Gson();
@@ -261,6 +261,17 @@ public class UserService {
     }
 
     // --- HELPER METHODS ---
+
+    private static UserData convertToUserData(DatabaseManager.UserData dbUser) {
+        if (dbUser == null) return null;
+        UserData user = new UserData();
+        user.id = dbUser.id;
+        user.username = dbUser.username;
+        user.email = dbUser.email;
+        user.password = dbUser.password;
+        user.command = null; // command is not in DatabaseManager.UserData
+        return user;
+    }
 
     private static void sendResponse(HttpExchange exchange, int statusCode, String response ) throws IOException {
         exchange.sendResponseHeaders(statusCode, response.length());

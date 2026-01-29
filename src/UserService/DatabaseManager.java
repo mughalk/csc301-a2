@@ -73,4 +73,12 @@ public class DatabaseManager {
         }
         return null; // User not found
     }
+
+    // --- USER DATA CLASS ---
+    static class UserData {
+        public int id;
+        public String username;
+        public String email;
+        public String password;
+    }
 }
