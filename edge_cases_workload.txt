@@ -1,0 +1,92 @@
+# Edge-cases-only workload
+# Annotations:
+#   [OK]   expected to succeed
+#   [FAIL] expected to fail (non-200). Exact code may be 400/401/404/409 depending on your implementation.
+#
+# NOTE: All tests below avoid parser-crashing cases (e.g., wrong token count / unknown top-level keyword)
+# so the WorkloadParser should keep running.
+
+############################
+# 0) Minimal setup (needed so edge cases are meaningful)
+############################
+
+user create 10 un-edgeUser edge10@test.com EdgePass10                 # [OK] (lowercase USER keyword to test case-insensitivity)
+PRODUCT create 10 edgeProduct 9.99 2                                  # [OK]
+USER get 10                                                           # [OK]
+PRODUCT info 10                                                       # [OK]
+
+############################
+# 1) USER edge cases
+############################
+
+# Duplicate create (same id again)
+USER create 10 un-edgeUserDup edge10dup@test.com NewPass              # [FAIL] (duplicate id)
+
+# Get non-existent id
+USER get 99999                                                        # [FAIL] (404)
+
+# Negative / zero id (parsing ok; service should reject)
+USER get 0                                                            # [FAIL] (likely 400/404)
+USER get -1                                                           # [FAIL] (likely 400/404)
+
+# Update with invalid/blank-ish username (if you validate non-blank)
+USER update 10 username: email:edge10new@test.com password:EdgePass10  # [FAIL] (empty username)
+USER update 10 username:    email:edge10new@test.com password:EdgePass10 # [FAIL] (whitespace username)
+
+# Delete with wrong password (auth failure while id exists)
+USER delete 10 un-edgeUser edge10@test.com WRONGPASS                   # [FAIL] (401)
+
+# Password token with trailing backslash (common copy/paste gotcha)
+USER delete 10 un-edgeUser edge10@test.com EdgePass10\                # [FAIL] (401)
+
+# Correct delete
+USER delete 10 un-edgeUser edge10@test.com EdgePass10                  # [OK]
+USER get 10                                                           # [FAIL] (404)
+
+############################
+# 2) PRODUCT edge cases
+############################
+
+# Duplicate create (same id again) - product 10 still exists unless your delete below happens first
+PRODUCT create 10 edgeProductDup 1.00 1                                # [FAIL] (duplicate id)
+
+# Invalid numeric fields
+PRODUCT create 11 badQty 1.00 -5                                       # [FAIL] (negative quantity)
+PRODUCT create 12 badPrice -1.00 5                                     # [FAIL] (negative price)
+
+# Update to invalid values
+PRODUCT update 10 name:edgeProduct price:-2.50 quantity:2              # [FAIL] (negative price)
+PRODUCT update 10 name:edgeProduct price:9.99 quantity:-1              # [FAIL] (negative quantity)
+
+# Delete with price formatting differences (catches naive float/string compare in delete verification)
+# If your service compares doubles with ==, 9.990 vs 9.99 may or may not match depending on parsing/formatting.
+PRODUCT delete 10 edgeProduct 9.990 2                                  # [FAIL] (often mismatch)
+
+# Correct delete, then delete again
+PRODUCT delete 10 edgeProduct 9.99 2                                   # [OK]
+PRODUCT info 10                                                        # [FAIL] (404)
+PRODUCT delete 10 edgeProduct 9.99 2                                   # [FAIL] (404)
+
+############################
+# 3) ORDER edge cases (assumes your OrderService checks user/product existence + stock)
+############################
+
+# Recreate a valid user+product for order tests
+USER create 20 un-orderUser order20@test.com OrderPass20               # [OK]
+PRODUCT create 20 orderProduct 5.00 2                                  # [OK]
+
+# Quantity 0 / negative
+ORDER place 20 20 0                                                    # [FAIL] (400)
+ORDER place 20 20 -1                                                   # [FAIL] (400)
+
+# Exact-drain inventory then one more (stock boundary)
+ORDER place 20 20 2                                                    # [OK]  (drains to 0)
+ORDER place 20 20 1                                                    # [FAIL] (insufficient stock -> 400)
+
+# Non-existent product/user
+ORDER place 99999 20 1                                                 # [FAIL] (404 product)
+ORDER place 20 99999 1                                                 # [FAIL] (404 user)
+
+# Cleanup (optional)
+USER delete 20 un-orderUser order20@test.com OrderPass20               # [OK]
+PRODUCT delete 20 orderProduct 5.00 0                                  # [OK] (if your delete expects current quantity; otherwise [FAIL])
