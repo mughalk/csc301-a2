@@ -264,7 +264,7 @@ public class UserService {
 
     // --- HELPER METHODS ---
 
-    private static UserData convertToUserData(DatabaseManager.UserData dbUser) {
+    private static UserData convertToUserData(UserDatabaseManager.UserData dbUser) {
         if (dbUser == null) return null;
         UserData user = new UserData();
         user.id = dbUser.id;
