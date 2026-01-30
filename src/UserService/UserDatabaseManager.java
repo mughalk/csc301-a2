@@ -1,6 +1,10 @@
+package UserService;
+
+import UserService.UserService.UserData;
+
 import java.sql.*;
 
-public class DatabaseManager {
+public class UserDatabaseManager {
     private static final String DB_URL = "jdbc:sqlite:users.db";
 
     // --- Singleton Connection ---

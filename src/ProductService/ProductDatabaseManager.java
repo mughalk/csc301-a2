@@ -1,6 +1,8 @@
+package ProductService;
+
 import java.sql.*;
 
-public class DatabaseManager {
+public class ProductDatabaseManager {
 
     private static final String DB_URL = "jdbc:sqlite:products.db";
 

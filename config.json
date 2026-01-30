@@ -1,10 +1,10 @@
 {
     "UserService": {
-        "port": 14001,
+        "port": 8081,
         "ip": "127.0.0.1"
     },
     "ProductService": {
-        "port": 15000,
+        "port": 8082,
         "ip": "127.0.0.1"
     },
     "OrderService": {

@@ -1,3 +1,5 @@
+package UserService;
+
 import com.sun.net.httpserver.HttpServer;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpExchange;
@@ -25,7 +27,7 @@ public class UserService {
 
     public static void main(String[] args) throws IOException {
         // 1. Initialize DB before server starts
-        DatabaseManager.initialize();
+        UserDatabaseManager.initialize();
 
         int port = 8081; // default port
         String ip = "127.0.0.1"; // default IP
@@ -113,7 +115,7 @@ public class UserService {
                         // Hash password only after validation passes
                         String hashedPassword = hashPassword(user.password);
                         user.password = hashedPassword;
-                        DatabaseManager.createUser(user.id, user.username, user.email, user.password);
+                        UserDatabaseManager.createUser(user.id, user.username, user.email, user.password);
                         // CHANGE: Return the user object as JSON instead of a text string
                         user.command = null;
                         String jsonResponse = gson.toJson(user); 
@@ -127,7 +129,7 @@ public class UserService {
                         }
 
                         // 1. Fetch the CURRENT database state
-                        UserData existingUser = DatabaseManager.getUser(user.id);
+                        UserData existingUser = UserDatabaseManager.getUser(user.id);
                         if (existingUser == null) {
                             sendResponse(exchange, 404, "{}"); // user id not found
                             return;
@@ -165,8 +167,8 @@ public class UserService {
                         }
 
                         // 5. Save to Database
-                        // Note: ensure DatabaseManager.updateUser is updated to accept 4 arguments
-                        DatabaseManager.updateUser(existingUser.id, existingUser.username, existingUser.email, existingUser.password);
+                        // Note: ensure UserDatabaseManager.updateUser is updated to accept 4 arguments
+                        UserDatabaseManager.updateUser(existingUser.id, existingUser.username, existingUser.email, existingUser.password);
 
                         // 6. Return the MERGED object so the client sees the full updated state
                         sendResponse(exchange, 200, gson.toJson(existingUser));
@@ -189,7 +191,7 @@ public class UserService {
                             sendResponse(exchange, 400, "{}"); // invalid or missing email
                             return;
                         }
-                        UserData dbUser = DatabaseManager.getUser(user.id);
+                        UserData dbUser = UserDatabaseManager.getUser(user.id);
                         if (dbUser == null) {
                             sendResponse(exchange, 404, "{}"); // user not found
                             return;
@@ -199,7 +201,7 @@ public class UserService {
                         boolean emailMatch = dbUser.email.equals(user.email);
                         boolean passMatch = dbUser.password.equals(inputHash);
                         if (usernameMatch && emailMatch && passMatch) {
-                            DatabaseManager.deleteUser(user.id);
+                            UserDatabaseManager.deleteUser(user.id);
                             sendResponse(exchange, 200, "{}");
                         } else {
                             sendResponse(exchange, 401, "{}"); // data mismatch
@@ -241,7 +243,7 @@ public class UserService {
                 int id = Integer.parseInt(segments[segments.length - 1]);
                 
                 // 2. Fetch User
-                UserData user = DatabaseManager.getUser(id);
+                UserData user = UserDatabaseManager.getUser(id);
 
                 if (user != null) {
                     Gson gson = new Gson();
@@ -324,7 +326,7 @@ public class UserService {
     }
 
     // --- USER DATA CLASS ---
-    static class UserData {
+    public static class UserData {
         public int id;
         public String username;
         public String email;
