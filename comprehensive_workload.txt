@@ -1,0 +1,103 @@
+# Comprehensive workload for end-to-end testing
+# Conventions:
+#   - Lines marked [OK] are expected to succeed (HTTP 200 or equivalent success).
+#   - Lines marked [FAIL] are expected to fail (non-200), e.g., 400/401/404/409 depending on service rules.
+# Notes:
+#   - WorkloadParser ignores anything after '#', so these annotations are safe.
+#   - This file combines and extends: ANNOTATEDworkload3u20c.txt, combinedWorkload.txt, productWorkload.txt, workloadOrder.txt.
+
+############################
+# 0) SETUP: create users
+############################
+
+USER create 2 username2NKlLXs elOf@Y4vxdHuRs2620f.com bY3NAKPS          # [OK]
+USER create 3 usernameKPTgmeH 36a9@hbCa.com gOmaQKKw                    # [OK]
+USER create 4 usernameFw5hdTh CYDJ@vMLrNA.com GMmhdr6J                  # [OK]
+
+USER get 2                                                             # [OK]
+USER get 3                                                             # [OK]
+USER get 4                                                             # [OK]
+
+############################
+# 1) SETUP: create products
+############################
+
+PRODUCT create 2 productname-2398 3.99 9                                # [OK]
+PRODUCT create 3 productname-2df398 3.99 32                             # [OK]
+PRODUCT create 4 productname-sdd2398 35.99 9                            # [OK]
+PRODUCT create 5 productname-2398 53.99 1                               # [OK] (name dup may be allowed; id differs)
+PRODUCT create 6 9889p0roductname-2398 3.79 5                           # [OK]
+
+PRODUCT info 2                                                         # [OK]
+PRODUCT info 3                                                         # [OK]
+PRODUCT info 4                                                         # [OK]
+
+############################
+# 2) HAPPY PATH: update user + delete user (proper credentials)
+############################
+
+USER update 2 username:un-4Vofkp8EyolNJYJ email:glud@Ucdl4s6HBjq.com password:BkPpkkW1   # [OK]
+USER get 2                                                                                 # [OK]
+USER delete 2 un-4Vofkp8EyolNJYJ glud@Ucdl4s6HBjq.com BkPpkkW1                              # [OK]
+USER get 2                                                                                 # [FAIL] (deleted => 404)
+
+############################
+# 3) NEGATIVE USER CASES after deletion of user 2
+############################
+
+USER update 2 username:un-zRXRH3yzGo7VBpI email:Xl9a@tZ3hIG0.com password:EldEnBQz        # [FAIL] (404)
+USER update 2 username:un-xHZQFlTI1Tx7dHO email:UGI7@LXnyAw.com password:z87aXnEM         # [FAIL] (404)
+
+# delete with missing 'un-' should fail even if user existed, and also fails now since user 2 is gone
+USER delete 2 xHZQFlTI1Tx7dHO UGI7@LXnyAw.com z87aXnEM                                     # [FAIL] (401 or 404)
+
+USER update 2 username:un-HofHCZu5GlVLLLz email:CDj0@n9HUYJpUuY.com password:0S0YJnb5      # [FAIL] (404)
+
+# extra: wrong credentials (even if user existed, should be 401)
+USER delete 2 un-4Vofkp8EyolNJYJ glud@Ucdl4s6HBjq.com WRONGPASS                             # [FAIL] (401 or 404)
+
+############################
+# 4) HAPPY PATH: update remaining users 3 & 4
+############################
+
+USER update 3 username:un-BhxQtm2AAJZZAt3 email:ZwN1@ABiDLCNO9T.com password:wDkglEM2       # [OK]
+USER update 4 username:un-6l2yS4n2P2PB77s email:TRhU@L3aKAYoMS8.com password:UpX6pI0F       # [OK]
+
+USER get 3                                                                                  # [OK]
+USER get 4                                                                                  # [OK]
+
+############################
+# 5) PRODUCT update + delete + negative checks
+############################
+
+PRODUCT update 4 name:granola price:4.99 quantity:20                                        # [OK]
+PRODUCT info 4                                                                              # [OK]
+
+PRODUCT delete 4 granola 4.99 20                                                            # [OK]
+PRODUCT info 4                                                                              # [FAIL] (deleted => 404)
+
+# extra negative: delete again should fail
+PRODUCT delete 4 granola 4.99 20                                                            # [FAIL] (404)
+
+############################
+# 6) ORDERS: success + failures
+############################
+# Order format: ORDER place <product_id> <user_id> <quantity>
+
+ORDER place 3 3 1                                                                           # [OK] (user 3 exists, product 3 has stock)
+ORDER place 3 3 2000                                                                        # [FAIL] (insufficient stock)
+ORDER place 9993 3 1                                                                        # [FAIL] (no product id 9993)
+
+# extra negative: user doesn't exist (user 2 deleted)
+ORDER place 3 2 1                                                                           # [FAIL] (no user id 2)
+
+############################
+# 7) FINAL STATE CHECKS
+############################
+
+USER get 3                                                                                  # [OK]
+USER get 4                                                                                  # [OK]
+
+PRODUCT info 2                                                                              # [OK]
+PRODUCT info 3                                                                              # [OK]
+PRODUCT info 4                                                                              # [FAIL]
