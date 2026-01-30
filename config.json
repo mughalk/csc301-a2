@@ -14,5 +14,9 @@
     "InterServiceCommunication": {
         "port": 14000,
         "ip": "127.0.0.1"
+    },
+    "WorkloadParser": {
+        "port": 8083,
+        "ip": "127.0.0.1"
     }
 }
