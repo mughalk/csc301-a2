@@ -18,7 +18,7 @@
 - Refined the update command logic to implement partial-update semantics (only updating provided fields)
 - Added database integration for persistence
 
-**Assessment**: ~40% of initial UserService code came from AI suggestions, but the final implementation is ~60% custom modifications. The core business logic, database integration, and error handling patterns are production-ready.
+**Assessment**: ~20% of initial UserService code came from AI suggestions and 20% from server code in lecture, but the final implementation is ~60% custom modifications. The core logic, database integration, and error handling patterns are production-ready.
 
 ### 1.2 UserService - Error Response Code Consolidation (MODIFIED)
 **Usage**: AI was used to generate a unified error response helper method and refactor multiple error handling branches that were initially returning inconsistent status codes.
@@ -28,6 +28,8 @@
 // Before: Multiple scattered error responses
 sendResponse(exchange, 400, "{}");
 sendResponse(exchange, 404, "{}");
+
+sendResponse(exchange, 404, "Error, xyz");
 // ... repeated throughout with different codes
 ```
 
