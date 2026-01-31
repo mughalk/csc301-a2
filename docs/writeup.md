@@ -44,10 +44,87 @@ sendResponse(exchange, 404, "Error, xyz");
 
 **Assessment**: ~20% AI-generated code that was modified for consistency. This refactoring saved significant development time and reduced bugs.
 
-### 1.3 Other Services - Minimal AI Usage
-- **ProductService**: ~5% AI usage for validation helper method templates; heavily modified
-- **OrderService**: ~10% AI usage for HTTP forwarding boilerplate; heavily customized with order logic
-- **ISCS**: ~0% AI usage; entirely custom implementation
+### 1.3 ProductService – API Implementation and Persistence (MODIFIED)
+
+**Usage**: Generative AI was used extensively during early development of the ProductService as an accelerator for adapting the `Main-2.java` HTTP server example provided in lecture into a working ProductService implementation. AI assistance was used to restructure request handlers, scaffold command parsing logic, and suggest an overall organization for GET and POST endpoint handling.
+
+**Specific Areas**:
+- Substantial modification of `Main-2.java` from lecture to support ProductService-specific commands (`create`, `info`, `update`, `delete`)
+- AI-assisted restructuring of HTTP request handlers and routing logic
+- Guidance on splitting large request-handling methods into smaller helper functions for readability
+- Generation of an initial placeholder product store without persistence
+- Creation of a ProductService database manager by modifying and extending the UserService database manager pattern to use SQLite
+- Writing a Python testing script to compare provided request payload `.json` files against expected response `.json` files
+
+**Modifications Made**:
+- The initial AI-generated placeholder product store was fully replaced with a persistent SQLite-backed implementation
+- Validation logic for product fields (ID, name, description, price, quantity) was manually corrected and aligned with the assignment specification
+- Error handling and HTTP response codes were rewritten to exactly match the provided test cases
+- Database schema creation, query logic, and concurrency handling were implemented and verified manually
+- Significant refactoring was performed to remove incorrect assumptions present in the AI-generated scaffolding
+- Python testing scripts were manually adjusted to correctly detect mismatches and handle edge cases
+
+**Assessment**: Generative AI contributed a significant portion of the initial ProductService scaffolding and structure. However, the final implementation reflects substantial manual modification and verification. AI-generated code accounts for approximately **40–50%** of the final ProductService codebase, with core correctness, persistence, and validation logic reviewed and adapted by the group.
+
+---
+
+### 1.4 OrderService – Service Composition and Request Forwarding (MODIFIED)
+
+**Usage**: Generative AI was used heavily during the initial development of the OrderService to adapt structural patterns from the ProductService into a functional order-processing service. AI assistance was particularly useful in generating early drafts of request handlers, helper methods, and HTTP forwarding boilerplate for inter-service communication.
+
+**Specific Areas**:
+- Generation of an initial OrderService draft based on patterns from the ProductService
+- AI-assisted creation of helper methods for request parsing and response handling
+- Boilerplate HTTP forwarding logic for communication with UserService and ProductService via ISCS
+- Writing a Python testing script to compare provided order workload `.json` payloads against expected response outputs
+
+**Modifications Made**:
+- The order placement logic (user existence checks, product lookup, stock validation, and quantity updates) was designed and implemented manually
+- AI-generated control flow was significantly refactored to ensure correct sequencing of cross-service requests
+- Error handling logic was rewritten to correctly propagate downstream service failures
+- Thread-safe in-memory order storage was implemented manually
+- Python testing scripts were manually refined to handle non-deterministic ordering and timing differences
+
+**Assessment**: AI was used extensively to generate the initial structure and boilerplate of the OrderService. The final implementation, however, required substantial manual intervention to ensure correctness and compliance with the assignment specification. AI-generated code accounts for approximately **50–60%** of the final OrderService, with all business logic reviewed, modified, and validated by the group.
+
+---
+
+### 1.5 WorkloadParser – Command Parsing and Request Execution (MOSTLY AI-GENERATED)
+
+**Usage**: Generative AI was used to generate the WorkloadParser almost in its entirety based on the finalized OrderService behavior and workload file specification. The parser was designed to read workload files, parse commands, and issue HTTP requests accordingly.
+
+**Specific Areas**:
+- Full generation of the initial WorkloadParser implementation
+- Command parsing logic for workload files
+- HTTP request construction and execution logic
+- Writing a Python testing script to compare expected workload outputs against actual responses
+
+**Modifications Made**:
+- Minor adjustments to parsed field names to ensure consistency with service APIs
+- Small fixes to parsing logic for formatting edge cases
+- Manual verification of request sequencing and output correctness
+
+**Assessment**: The WorkloadParser is predominantly AI-generated, with AI-written code accounting for approximately **85–90%** of the final implementation. Manual modifications were minimal and focused on alignment with service interfaces and correctness verification rather than structural redesign.
+
+---
+
+### 1.6 runme.sh – Build and Execution Automation (MOSTLY AI-GENERATED)
+
+**Usage**: Generative AI was used to generate the complete initial version of the `runme.sh` build and execution script, including directory setup, compilation commands, and service execution logic.
+
+**Specific Areas**:
+- Full generation of the script structure
+- Compilation and execution commands for all services
+- Command-line flag handling for selective service execution and workload parsing
+
+**Modifications Made**:
+- Manual specification of the exact execution order required by the assignment
+- Addition of strict error-handling flags (`set -euo pipefail`)
+- Refinement of runtime flags and classpaths to match the required directory structure
+- Verification and adjustment of command behavior to align with assignment expectations
+
+**Assessment**: The `runme.sh` script is largely AI-generated, with approximately **80–90%** of the final script originating from AI output. Manual changes focused on correctness, robustness, and compliance with the assignment’s execution requirements.
+
 
 ## 2. Code Shortcuts and A2 Refactoring Needs
 
@@ -254,6 +331,47 @@ private void handlePost(HttpExchange exchange) throws IOException {
 - Works perfectly fine for A2
 
 **Current Rating**: 85% production-ready; style improvement recommended
+
+---
+### 2.8 WorkloadParser – Sequential Execution and Scalability Limitations (REWRITE REQUIRED)
+
+**Current Implementation**:  
+The WorkloadParser is implemented as a single-process, sequential command executor. It reads workload files line-by-line, parses each command, and issues synchronous HTTP requests to the appropriate services (UserService, ProductService, OrderService) based on the parsed command type.
+
+**Why It Works for A1**:
+- Assignment 1 workloads are explicitly limited to at most **100 commands**
+- The number of users and products is capped at **10 each**
+- All commands are processed sequentially, ensuring deterministic behavior and easier debugging
+- Network latency and blocking I/O are negligible at this scale
+- The parser assumes all services are available and responsive at all times, which holds under A1 testing conditions
+
+Given these constraints, a simple, single-threaded workload executor is sufficient and reliable for Assignment 1.
+
+**Why It Will Fail for A2**:
+Assignment 2 significantly increases both scale and fault tolerance requirements:
+- Up to **1 million commands** must complete within a short time window (e.g., 4 minutes)
+- The system must tolerate **partial service shutdowns and restarts**
+- Configurations may include **multiple instances per service**, distributed across machines
+- Commands are executed strictly sequentially, preventing parallelism
+- Each command blocks on network I/O, severely limiting throughput
+- There is no batching, pipelining, or concurrency model
+- No retry or backoff logic exists if a service instance is temporarily unavailable
+- No checkpointing or progress tracking exists, so failures mid-workload require restarting from the beginning
+- The parser assumes a static and fully available service topology
+
+At A2 scale, this design would be unable to meet throughput and fault-tolerance requirements.
+
+**Required A2 Refactor**:
+To support Assignment 2, the WorkloadParser would require a substantial rewrite, including:
+- Parallel command execution using a thread pool or asynchronous I/O
+- Intelligent batching of independent commands
+- Retry logic with exponential backoff for transient service failures
+- Awareness of multiple service instances and dynamic availability
+- Progress tracking and checkpointing to allow recovery after failure
+- Optional rate limiting to prevent overwhelming downstream services
+
+**Assessment**:  
+The current WorkloadParser is intentionally simple and optimized for correctness and clarity under A1 constraints. It is **not designed to scale** to A2 workloads and will require a **major architectural rewrite** to support high-throughput, fault-tolerant execution. This tradeoff was deliberate, as A1 prioritizes correctness and specification compliance over scalability.
 
 ---
 
