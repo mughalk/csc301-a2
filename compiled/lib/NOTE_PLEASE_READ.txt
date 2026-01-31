@@ -1,0 +1,3 @@
+This is /compiled/lib under the A1 project directory. When compiling the files, note that the script simply points
+to the /lib directory in the project root using this class path. Copying the .jar files here does nothing, and is
+more of a needless risk than anything.
