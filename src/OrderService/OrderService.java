@@ -36,9 +36,13 @@ public class OrderService {
             System.exit(1);
         }
 
+        // Initialize database before server starts
+        OrderDatabaseManager.initialize();
+
         loadConfig(args[0]);
 
         HttpServer server = HttpServer.create(new InetSocketAddress(port), 0);
+        server.createContext("/user/purchased", new UserPurchasesHandler());
         server.createContext("/user", new ProxyHandler());
         server.createContext("/product", new ProxyHandler());
         server.createContext("/order", new OrderHandler());
@@ -215,7 +219,15 @@ public class OrderService {
                 return;
             }
 
-            // 4) Store order internally (optional; not required by the create tests)
+            // 4) Record purchase in database
+            try {
+                OrderDatabaseManager.addOrUpdatePurchase(userId, productId, qty);
+            } catch (Exception e) {
+                respondStatus(ex, 400, "Invalid Request");
+                return;
+            }
+
+            // 5) Store order internally (optional; not required by the create tests)
             String orderId = UUID.randomUUID().toString();
             JsonObject order = new JsonObject();
             order.addProperty("id", orderId);
@@ -224,10 +236,60 @@ public class OrderService {
             order.addProperty("quantity", qty);
             orders.put(orderId, order);
 
-            // 5) Success response must include these keys (per your test output)
+            // 6) Success response must include these keys (per your test output)
             respondSuccess(ex, userId, productId, qty);
         }
 
+    }
+
+    /* ===================== USER PURCHASES HANDLER ===================== */
+
+    static class UserPurchasesHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange ex) throws IOException {
+            String method = ex.getRequestMethod();
+            String path = ex.getRequestURI().getPath();
+
+            if (!"GET".equals(method)) {
+                sendError(ex, 405, "Method not allowed");
+                return;
+            }
+
+            // Parse /user/purchased/{userId}
+            String[] parts = path.split("/");
+            if (parts.length != 4 || !"purchased".equals(parts[2])) {
+                sendError(ex, 404, "Invalid endpoint");
+                return;
+            }
+
+            int userId;
+            try {
+                userId = Integer.parseInt(parts[3]);
+            } catch (NumberFormatException e) {
+                sendError(ex, 404, "Invalid user id");
+                return;
+            }
+
+            // 1) Verify user exists via UserService (via ISCS)
+            // might need to test
+            HttpResult userRes = forward("GET", iscsBase + "/user/" + userId, null, ex);
+            if (userRes.code != 200) {
+                sendError(ex, 404, "User not found");
+                return;
+            }
+
+            // 2) Get user's purchases from database
+            Map<Integer, Integer> purchases = OrderDatabaseManager.getPurchasesForUser(userId);
+
+            // 3) Build response JSON
+            JsonObject response = new JsonObject();
+            for (Map.Entry<Integer, Integer> entry : purchases.entrySet()) {
+                response.addProperty(String.valueOf(entry.getKey()), entry.getValue());
+            }
+
+            // 4) Return response (200 with JSON, empty or populated)
+            sendJson(ex, 200, response);
+        }
     }
 
     /* ===================== HELPERS ===================== */
