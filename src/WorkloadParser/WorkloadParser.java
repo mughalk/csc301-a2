@@ -290,7 +290,7 @@ public class WorkloadParser {
             // ORDER get <user_id>
             requireLen(t, 3);
             int user_id = parseInt(t[2], user_id);
-            httpPostJson(orderBase + "/user/purchased/"+user_id, {});
+            httpGet(orderBase + "/user/purchased/" + user_id);
         }
         else if (!"place".equals(cmd)) {
             // unknown order command, ignore/send anyway
