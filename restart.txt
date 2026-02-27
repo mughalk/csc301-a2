@@ -1,1 +1,3 @@
 restart
+PRODUCT create 3000 productname-3000 3.99 10
+ORDER place 3000 3 10
