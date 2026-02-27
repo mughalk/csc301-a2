@@ -38,3 +38,4 @@ USER get 4
 PRODUCT create 2000 productname-2000 3.99 10
 ORDER place 2000 3 10
 ORDER place 2000 3 10
+shutdown

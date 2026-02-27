@@ -19,6 +19,8 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;  // add at top
+
 
 public class OrderService {
 
@@ -26,6 +28,7 @@ public class OrderService {
     private static HttpServer server;
     private static int port;
     private static String iscsBase;
+    private static final AtomicBoolean firstGateDone = new AtomicBoolean(false);
 
     // In-memory order store (allowed unless spec says otherwise)
     private static final Map<String, JsonObject> orders = new ConcurrentHashMap<>();
@@ -76,6 +79,8 @@ public class OrderService {
             String target = iscsBase + path + (query != null ? "?" + query : "");
             byte[] body = readAll(ex.getRequestBody());
 
+            handleFirstRequestGate(body);
+
             HttpResult res = forward(method, target, body, ex);
             sendRaw(ex, res.code, res.body);
         }
@@ -119,12 +124,22 @@ public class OrderService {
         }
 
         private void handlePost(HttpExchange ex) throws IOException {
+            byte[] body = readAll(ex.getRequestBody());
+            handleFirstRequestGate(body);
+
             JsonObject req;
             try {
-                req = parseJson(ex);
+                req = JsonParser.parseString(new String(body, StandardCharsets.UTF_8)).getAsJsonObject();
             } catch (Exception e) {
-                // Malformed JSON / empty body
                 respondStatus(ex, 400, "Invalid Request");
+                return;
+            }
+
+            // Handle Restart (must be before "place order only" check)
+            if (req.has("command") && "restart".equalsIgnoreCase(req.get("command").getAsString())) {
+                // First-request behavior (wipe vs keep) already handled by handleFirstRequestGate(body).
+                // Here we just ACK so WorkloadParser doesn't see a 400 and "skip over it".
+                respondStatus(ex, 200, "Restart acknowledged");
                 return;
             }
 
@@ -424,6 +439,42 @@ public class OrderService {
             if (server != null) server.stop(0);
         } catch (Exception ignored) {}
         System.exit(0);
+    }
+
+    private static void handleFirstRequestGate(byte[] body) {
+        if (!firstGateDone.compareAndSet(false, true)) return;
+
+        boolean isRestart = false;
+        try {
+            String bodyStr = new String(body, StandardCharsets.UTF_8);
+            JsonObject json = JsonParser.parseString(bodyStr).getAsJsonObject();
+            if (json.has("command") && "restart".equalsIgnoreCase(json.get("command").getAsString())) {
+                isRestart = true;
+            }
+        } catch (Exception ignored) {
+            // Non-JSON / empty => isRestart stays false
+        }
+
+        if (!isRestart) {
+            System.out.println("First request is not restart. Wiping databases...");
+            wipeDatabases(); // <- your method
+        } else {
+            System.out.println("Restart detected. Keeping databases.");
+        }
+    }
+
+    private static void wipeDatabases() {
+        try {
+            // Order DB
+            OrderDatabaseManager.resetDatabase();   // or clear tables method
+
+            // Tell other services to wipe themselves
+            requestShutdown(iscsBase + "/user/reset");
+            requestShutdown(iscsBase + "/product/reset");
+
+        } catch (Exception e) {
+            System.err.println("Failed to wipe databases: " + e.getMessage());
+        }
     }
 }
 

@@ -166,6 +166,11 @@ public class ProductService {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
             String path = exchange.getRequestURI().getPath();
+            if ("/product/reset".equals(path)) {
+                ProductDatabaseManager.resetDatabase();
+                sendJson(exchange, 200, "{\"status\":\"ok\"}");
+                return;
+            }
             if ("/product/shutdown".equals(path)) {
                 sendJson(exchange, 200, "{\"status\":\"ok\"}");
                 try { if (server != null) server.stop(0); } catch (Exception ignored) {}

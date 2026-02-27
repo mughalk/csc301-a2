@@ -72,4 +72,17 @@ public class OrderDatabaseManager {
         
         return purchases;
     }
+
+    public static void resetDatabase() {
+        try (Connection conn = connect();
+             Statement stmt = conn.createStatement()) {
+
+            stmt.executeUpdate("DROP TABLE IF EXISTS user_purchases");
+
+        } catch (SQLException e) {
+            throw new RuntimeException("Failed to reset Order DB", e);
+        }
+
+        initialize();
+    }
 }

@@ -74,6 +74,11 @@ public class UserService {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
             String path = exchange.getRequestURI().getPath();
+            if ("/user/reset".equals(path)) {
+                UserDatabaseManager.resetDatabase();   // implement this in UserDatabaseManager
+                sendResponse(exchange, 200, "{}");
+                return;
+            }
             if ("/user/shutdown".equals(path)) {
                 sendResponse(exchange, 200, "{}");
                 try { if (server != null) server.stop(0); } catch (Exception ignored) {}
