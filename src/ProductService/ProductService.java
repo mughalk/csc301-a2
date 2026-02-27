@@ -21,6 +21,8 @@ public class ProductService {
     // IMPORTANT: UserService.java uses 8081. Avoid collision.
     private static final int PORT = 8082;
 
+    private static HttpServer server; // NEW
+
     // ---------- Model ----------
     public static class Product {
         int id;
@@ -125,6 +127,11 @@ public class ProductService {
         int port = PORT; // default port (8082)
         String ip = "127.0.0.1"; // default IP
 
+        server = HttpServer.create(new InetSocketAddress(ip, port), 0); // CHANGED
+        server.setExecutor(Executors.newFixedThreadPool(20));
+        server.createContext("/product", new ProductHandler());
+        server.start();
+
         // Load config from file if provided
         if (args.length > 0) {
             try {
@@ -158,6 +165,13 @@ public class ProductService {
     static class ProductHandler implements HttpHandler {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
+            String path = exchange.getRequestURI().getPath();
+            if ("/product/shutdown".equals(path)) {
+                sendJson(exchange, 200, "{\"status\":\"ok\"}");
+                try { if (server != null) server.stop(0); } catch (Exception ignored) {}
+                System.exit(0);
+                return;
+            }
             try {
                 String method = exchange.getRequestMethod();
 

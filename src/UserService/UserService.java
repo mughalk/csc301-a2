@@ -25,12 +25,19 @@ import java.nio.charset.StandardCharsets;
 
 public class UserService {
 
+    private static HttpServer server;
+
     public static void main(String[] args) throws IOException {
         // 1. Initialize DB before server starts
         UserDatabaseManager.initialize();
 
         int port = 8081; // default port
         String ip = "127.0.0.1"; // default IP
+
+        server = HttpServer.create(new InetSocketAddress(ip, port), 0); // CHANGED
+        server.setExecutor(Executors.newFixedThreadPool(20));
+        server.createContext("/user", new UserHandler());
+        server.start();
 
         // Load config from file if provided
         if (args.length > 0) {
@@ -66,6 +73,13 @@ public class UserService {
     static class UserHandler implements HttpHandler {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
+            String path = exchange.getRequestURI().getPath();
+            if ("/user/shutdown".equals(path)) {
+                sendResponse(exchange, 200, "{}");
+                try { if (server != null) server.stop(0); } catch (Exception ignored) {}
+                System.exit(0);
+                return;
+            }
             String method = exchange.getRequestMethod().toUpperCase();
             
             if ("POST".equals(method)) {

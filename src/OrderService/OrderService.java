@@ -23,7 +23,7 @@ import java.util.concurrent.Executors;
 public class OrderService {
 
     private static final Gson GSON = new Gson();
-
+    private static HttpServer server;
     private static int port;
     private static String iscsBase;
 
@@ -41,7 +41,7 @@ public class OrderService {
 
         loadConfig(args[0]);
 
-        HttpServer server = HttpServer.create(new InetSocketAddress(port), 0);
+        server = HttpServer.create(new InetSocketAddress(port), 0); // CHANGED
         server.createContext("/user/purchased", new UserPurchasesHandler());
         server.createContext("/user", new ProxyHandler());
         server.createContext("/product", new ProxyHandler());
@@ -126,6 +126,24 @@ public class OrderService {
                 // Malformed JSON / empty body
                 respondStatus(ex, 400, "Invalid Request");
                 return;
+            }
+
+            // NEW: accept shutdown command (before the "place order" validation)
+            try {
+                if (req.has("command") && "shutdown".equalsIgnoreCase(req.get("command").getAsString())) {
+                    respondStatus(ex, 200, "Shutting down");
+
+                    // tell other services to stop (via ISCS routing)
+                    requestShutdown(iscsBase + "/user/shutdown");
+                    requestShutdown(iscsBase + "/product/shutdown");
+                    requestShutdown(iscsBase + "/shutdown"); // ISCS itself (we'll add this endpoint)
+
+                    // stop OrderService last
+                    shutdownSelf();
+                    return;
+                }
+            } catch (Exception ignored) {
+                // fall through to normal validation
             }
 
             // Command check (treat wrong/missing command as invalid request for the tests)
@@ -384,6 +402,28 @@ public class OrderService {
         JsonObject o = new JsonObject();
         o.addProperty("error", msg);
         sendJson(ex, code, o);
+    }
+
+    private static void requestShutdown(String urlStr) {
+        try {
+            HttpURLConnection conn = (HttpURLConnection) new URL(urlStr).openConnection();
+            conn.setRequestMethod("POST");
+            conn.setConnectTimeout(1000);
+            conn.setReadTimeout(1000);
+            conn.setDoOutput(true);
+            conn.getOutputStream().write(new byte[0]);
+            conn.getResponseCode(); // trigger request
+            conn.disconnect();
+        } catch (Exception ignored) {
+            // best-effort shutdown
+        }
+    }
+
+    private static void shutdownSelf() {
+        try {
+            if (server != null) server.stop(0);
+        } catch (Exception ignored) {}
+        System.exit(0);
     }
 }
 

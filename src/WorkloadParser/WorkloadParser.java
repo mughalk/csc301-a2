@@ -88,6 +88,7 @@ public class WorkloadParser {
         return "http://" + ip + ":" + port;
     }
 
+    // --- CHANGE 1: runWorkload() breaks when processLine says "stop" ---
     private static void runWorkload(String orderBase, String workloadPath) throws IOException {
         try (BufferedReader br = new BufferedReader(new FileReader(workloadPath))) {
             String line;
@@ -96,17 +97,15 @@ public class WorkloadParser {
             while ((line = br.readLine()) != null) {
                 lineNo++;
 
-                // strip comments and trim
                 int hash = line.indexOf('#');
                 if (hash >= 0) line = line.substring(0, hash);
                 line = line.trim();
-
                 if (line.isEmpty()) continue;
 
                 try {
-                    processLine(orderBase, line);
+                    boolean keepGoing = processLine(orderBase, line);  // CHANGED
+                    if (!keepGoing) return;                           // CHANGED (stop after shutdown)
                 } catch (Exception e) {
-                    // Keep going; workloads include expected failures. :contentReference[oaicite:3]{index=3}
                     System.err.println("[WorkloadParser] line " + lineNo + " FAILED: " + line);
                     System.err.println("  -> " + e.getMessage());
                 }
@@ -114,9 +113,23 @@ public class WorkloadParser {
         }
     }
 
-    private static void processLine(String orderBase, String line) throws IOException {
+    // --- CHANGE 2: processLine returns boolean and handles single-token shutdown ---
+    private static boolean processLine(String orderBase, String line) throws IOException { // CHANGED SIGNATURE
         String[] t = line.split("\\s+");
-        if (t.length < 2) return;
+
+        // NEW: handle single-token commands
+        if (t.length == 1) {
+            String cmd1 = t[0].trim().toLowerCase();
+            if ("shutdown".equals(cmd1)) {
+                JsonObject body = new JsonObject();
+                body.addProperty("command", "shutdown");
+                httpPostJson(orderBase + "/order", body);
+                return false; // stop reading workload after shutdown
+            }
+            return true; // ignore unknown single-token line
+        }
+
+        if (t.length < 2) return true; // CHANGED (was void return)
 
         String kind = t[0].toUpperCase();
         String cmd = t[1].toLowerCase();
@@ -134,6 +147,8 @@ public class WorkloadParser {
             default:
                 // ignore
         }
+
+        return true;
     }
 
     // ===================== USER =====================
