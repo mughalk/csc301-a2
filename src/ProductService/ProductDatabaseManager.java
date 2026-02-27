@@ -117,4 +117,16 @@ public class ProductDatabaseManager {
             }
         }
     }
+    public static void resetDatabase() {
+        try (Connection conn = DriverManager.getConnection(DB_URL);
+             Statement stmt = conn.createStatement()) {
+
+            stmt.executeUpdate("DROP TABLE IF EXISTS products");
+
+        } catch (SQLException e) {
+            throw new RuntimeException("Failed to reset Product DB", e);
+        }
+
+        initialize();
+    }
 }

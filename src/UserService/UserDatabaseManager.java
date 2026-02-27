@@ -78,6 +78,19 @@ public class UserDatabaseManager {
         return null; // User not found
     }
 
+    public static void resetDatabase() {
+        try (Connection conn = connect();
+             Statement stmt = conn.createStatement()) {
+
+            stmt.executeUpdate("DROP TABLE IF EXISTS users");
+
+        } catch (SQLException e) {
+            throw new RuntimeException("Failed to reset User DB", e);
+        }
+
+        initialize(); // recreate schema
+    }
+
     // --- USER DATA CLASS ---
     static class UserData {
         public int id;

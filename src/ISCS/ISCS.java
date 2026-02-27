@@ -45,7 +45,23 @@ public class ISCS {
         // 2. Start the Server
         // Maximum queued incoming connections to allow is set to 0 (system default)
         HttpServer server = HttpServer.create(new InetSocketAddress(port), 0);
-        
+        server.createContext("/shutdown", exchange -> {
+            String method = exchange.getRequestMethod();
+            if (!"POST".equalsIgnoreCase(method)) {
+                exchange.sendResponseHeaders(405, 0);
+                exchange.close();
+                return;
+            }
+            byte[] resp = "{\"status\":\"ok\"}".getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().add("Content-Type", "application/json");
+            exchange.sendResponseHeaders(200, resp.length);
+            try (OutputStream os = exchange.getResponseBody()) { os.write(resp); }
+
+            // stop after responding
+            server.stop(0);
+            System.exit(0);
+        });
+
         // 3. Create Contexts
         // We catch ALL traffic and route it dynamically.
         server.createContext("/", new RouterHandler());
