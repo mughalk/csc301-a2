@@ -120,15 +120,23 @@ public class WorkloadParser {
         // NEW: handle single-token commands
         if (t.length == 1) {
             String cmd1 = t[0].trim().toLowerCase();
+
             if ("shutdown".equals(cmd1)) {
                 JsonObject body = new JsonObject();
                 body.addProperty("command", "shutdown");
                 httpPostJson(orderBase + "/order", body);
-                return false; // stop reading workload after shutdown
+                return false;
             }
-            return true; // ignore unknown single-token line
-        }
 
+            if ("restart".equals(cmd1)) {   // NEW
+                JsonObject body = new JsonObject();
+                body.addProperty("command", "restart");
+                httpPostJson(orderBase + "/order", body);
+                return true;   // keep processing workload
+            }
+
+            return true;
+        }
         if (t.length < 2) return true; // CHANGED (was void return)
 
         String kind = t[0].toUpperCase();
