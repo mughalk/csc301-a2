@@ -65,7 +65,7 @@ compile_all() {
 reset_dbs() {
   echo "[runme] Resetting databases..."
 
-  rm -f "$ROOT/users.db" "$ROOT/products.db"
+  rm -f "$ROOT/users.db" "$ROOT/products.db" "$ROOT/orders.db"
   echo "  databases removed (if they existed)"
 }
 
