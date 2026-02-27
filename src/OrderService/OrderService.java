@@ -141,22 +141,16 @@ public class OrderService {
             }
 
             // Required fields + type checks (avoid throwing -> RemoteDisconnected)
-            if (!req.has("user_id") || !req.has("product_id") || !req.has("quantity")) {
+            if (!req.has("user_id") || !req.has("product_id")) {
                 respondStatus(ex, 400, "Invalid Request");
                 return;
             }
 
-            int userId, productId, qty;
+            int userId, productId;
             try {
                 userId = req.get("user_id").getAsInt();
                 productId = req.get("product_id").getAsInt();
-                qty = req.get("quantity").getAsInt();
             } catch (Exception e) {
-                respondStatus(ex, 400, "Invalid Request");
-                return;
-            }
-
-            if (qty <= 0) {
                 respondStatus(ex, 400, "Invalid Request");
                 return;
             }
@@ -196,7 +190,7 @@ public class OrderService {
             }
 
             // Special case: exceeded stock
-            if (qty > stock) {
+            if (1 > stock) {
                 respondStatus(ex, 400, "Exceeded quantity limit"); // (409 also acceptable per your spec)
                 return;
             }
@@ -205,7 +199,7 @@ public class OrderService {
             JsonObject update = new JsonObject();
             update.addProperty("command", "update");
             update.addProperty("id", productId);
-            update.addProperty("quantity", stock - qty);
+            update.addProperty("quantity", stock - 1);
 
             HttpResult updRes = forward(
                     "POST",
@@ -221,7 +215,7 @@ public class OrderService {
 
             // 4) Record purchase in database
             try {
-                OrderDatabaseManager.addOrUpdatePurchase(userId, productId, qty);
+                OrderDatabaseManager.addOrUpdatePurchase(userId, productId, 1);
             } catch (Exception e) {
                 respondStatus(ex, 400, "Invalid Request");
                 return;
@@ -233,11 +227,11 @@ public class OrderService {
             order.addProperty("id", orderId);
             order.addProperty("user_id", userId);
             order.addProperty("product_id", productId);
-            order.addProperty("quantity", qty);
+            order.addProperty("quantity", 1);
             orders.put(orderId, order);
 
             // 6) Success response must include these keys (per your test output)
-            respondSuccess(ex, userId, productId, qty);
+            respondSuccess(ex, userId, productId, 1);
         }
 
     }
