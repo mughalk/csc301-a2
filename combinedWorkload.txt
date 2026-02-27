@@ -4,7 +4,7 @@ USER create 3 usernameKPTgmeH 36a9@hbCa.com gOmaQKKw
 PRODUCT create 3 productname-2df398 3.99 32
 USER create 4 usernameFw5hdTh CYDJ@vMLrNA.com GMmhdr6J
 PRODUCT create 4 productname-sdd2398 35.99 9
-ORDER place 9993 3  # This should fail, no order id 9993  
+ORDER place 9993 3 3 # This should fail, no order id 9993
 USER get 2
 PRODUCT create 5 productname-2398 53.99 1
 USER update 2 username:un-4Vofkp8EyolNJYJ email:glud@Ucdl4s6HBjq.com password:BkPpkkW1
@@ -27,11 +27,12 @@ USER delete 2 xHZQFlTI1Tx7dHO UGI7@LXnyAw.com z87aXnEM
 USER update 2 username:un-HofHCZu5GlVLLLz email:CDj0@n9HUYJpUuY.com password:0S0YJnb5
 USER get 3
 USER update 2 username:un-j2ejWGkAd3Rzv4C email:rPhV@NypRd7qmDMKda.com password:9cxYT5iV
-ORDER place 3 1
+ORDER place 3 1 9
 USER delete 2 j2ejWGkAd3Rzv4C rPhV@NypRd7qmDMKda.com 9cxYT5iV
 USER get 2
 USER delete 2 HofHCZu5GlVLLLz CDj0@n9HUYJpUuY.com 0S0YJnb5
 USER get 2
 USER get 3
 USER get 4
-ORDER place 3 2000  
+ORDER place 3 2000 10
+ORDER get 3
