@@ -289,7 +289,7 @@ public class WorkloadParser {
         } else if ("get".equals(cmd)) {
             // ORDER get <user_id>
             requireLen(t, 3);
-            int user_id = parseInt(t[2], user_id);
+            int user_id = parseInt(t[2], "user_id");
             httpGet(orderBase + "/user/purchased/" + user_id);
         }
         else if (!"place".equals(cmd)) {
