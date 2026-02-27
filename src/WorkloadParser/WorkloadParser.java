@@ -271,28 +271,34 @@ public class WorkloadParser {
     // ===================== ORDER =====================
 
     private static void handleOrder(String orderBase, String cmd, String[] t) throws IOException {
-        if (!"place".equals(cmd)) {
+        if ("place".equals(cmd)) {
+            // ORDER place <product_id> <user_id> <quantity> :contentReference[oaicite:9]{index=9}
+            requireLen(t, 5); 
+
+            int productId = parseInt(t[2], "product_id");
+            int userId = parseInt(t[3], "user_id");
+            int qty = parseInt(t[4], "quantity");
+
+            JsonObject body = new JsonObject();
+            body.addProperty("command", "place order");
+            body.addProperty("product_id", productId);
+            body.addProperty("user_id", userId);
+            body.addProperty("quantity", qty);
+
+            httpPostJson(orderBase + "/order", body);
+        } else if ("get".equals(cmd)) {
+            // ORDER get <user_id>
+            requireLen(t, 3);
+            int user_id = parseInt(t[2], "user_id");
+            httpGet(orderBase + "/user/purchased/" + user_id);
+        }
+        else if (!"place".equals(cmd)) {
             // unknown order command, ignore/send anyway
             JsonObject body = new JsonObject();
             body.addProperty("command", cmd);
             httpPostJson(orderBase + "/order", body);
             return;
         }
-
-        // ORDER place <product_id> <user_id> <quantity> :contentReference[oaicite:9]{index=9}
-        requireLen(t, 5);
-
-        int productId = parseInt(t[2], "product_id");
-        int userId = parseInt(t[3], "user_id");
-        int qty = parseInt(t[4], "quantity");
-
-        JsonObject body = new JsonObject();
-        body.addProperty("command", "place order");
-        body.addProperty("product_id", productId);
-        body.addProperty("user_id", userId);
-        body.addProperty("quantity", qty);
-
-        httpPostJson(orderBase + "/order", body);
     }
 
     // ===================== token parsing =====================
