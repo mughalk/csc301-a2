@@ -40,6 +40,8 @@ const HEADERS = { 'Content-Type': 'application/json' };
 const SEED_USER_IDS    = [1, 2, 3, 4, 5];
 const SEED_PRODUCT_IDS = [1, 2, 3, 4, 5];
 
+const SETUP_PARAMS = { headers: HEADERS, timeout: '5s' };
+
 // setup() — runs once before VUs start
 export function setup() {
     for (const id of SEED_USER_IDS) {
@@ -49,7 +51,7 @@ export function setup() {
             username: `seeduser${id}`,
             email:    `seeduser${id}@test.com`,
             password: `seedpass${id}`,
-        }), { headers: HEADERS });
+        }), SETUP_PARAMS);
     }
 
     for (const id of SEED_PRODUCT_IDS) {
@@ -61,7 +63,7 @@ export function setup() {
             description: `Seed product ${id}`,
             price:       id * 9.99,
             quantity:    100000,
-        }), { headers: HEADERS });
+        }), SETUP_PARAMS);
     }
 }
 

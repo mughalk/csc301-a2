@@ -7,10 +7,15 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class OrderDatabaseManager {
-    private static final String DB_URL = "jdbc:sqlite:orders.db";
+    private static final String DB_URL  = System.getenv("DB_URL")  != null ? System.getenv("DB_URL")  : "jdbc:sqlite:orders.db";
+    private static final String DB_USER = System.getenv("DB_USER") != null ? System.getenv("DB_USER") : "";
+    private static final String DB_PASS = System.getenv("DB_PASS") != null ? System.getenv("DB_PASS") : "";
 
     // --- Singleton Connection ---
     public static Connection connect() throws SQLException {
+        if (!DB_USER.isEmpty()) {
+            return DriverManager.getConnection(DB_URL, DB_USER, DB_PASS);
+        }
         return DriverManager.getConnection(DB_URL);
     }
 
