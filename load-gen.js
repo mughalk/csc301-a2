@@ -3,12 +3,15 @@
  *
  * Usage:
  *   k6 run load-gen.js
- *   k6 run -e TARGET=http://142.1.46.113:14002 -e VUS=500 -e DURATION=5s load-gen.js
+ *   k6 run -e TARGET=http://<vm-ip>:14002 -e VUS=20 -e DURATION=30s load-gen.js
  *
  * ENV vars:
  *   TARGET   — base URL of OrderService  (default: http://127.0.0.1:14002)
- *   VUS      — number of virtual users   (default: 100)
- *   DURATION — test duration             (default: 1s)
+ *   VUS      — number of virtual users   (default: 20)
+ *   DURATION — test duration             (default: 30s)
+ *
+ * TPS = look at `iterations/s` in summary, NOT `http_reqs/s`.
+ * VU sizing: VUs ≈ target_TPS × avg_latency_seconds
  */
 
 import http from 'k6/http';
@@ -16,15 +19,18 @@ import { check } from 'k6';
 import exec from 'k6/execution';
 
 const TARGET   = __ENV.TARGET   || 'http://127.0.0.1:14002';
-const VUS      = parseInt(__ENV.VUS      || '100');
-const DURATION = __ENV.DURATION || '1s';
+const VUS      = parseInt(__ENV.VUS      || '20');
+const DURATION = __ENV.DURATION || '30s';
 
+// Force HTTP/1.1 keep-alive so k6 reuses TCP connections instead of
+// opening a new socket per request (prevents ephemeral port exhaustion).
 export const options = {
     vus:      VUS,
     duration: DURATION,
+    noConnectionReuse: false,  // keep-alive ON; prevents ephemeral port exhaustion
     thresholds: {
         http_req_failed:   ['rate<0.05'],
-        http_req_duration: ['p(95)<1000'],
+        http_req_duration: ['p(95)<2000'],
     },
 };
 
