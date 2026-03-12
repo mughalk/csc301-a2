@@ -39,6 +39,9 @@ sudo apt-get install k6  # Linux
 
 ## SSH into VM1 (to start/stop services)
 
+IMPORTANT NOTE: MAKE SURE CISCO ANYCONNECTVPN IS CONNECTED TO UTM VPN BEFORE SSHING INTO THE HOST MACHINE. OTHERWISE, YOU WON'T BE ABLE TO ACCESS THE VMS.
+https://security.utoronto.ca/services/vpn/usage-guide/
+
 ```bash
 # Step 1: SSH to the host machine
 ssh <utorid>@dh2010pc44.utm.utoronto.ca
@@ -70,10 +73,7 @@ docker-compose -f docker-compose.vm1.yml up --build -d
 # Check status:
 docker-compose -f docker-compose.vm1.yml ps
 
-# Watch logs:
-docker-compose -f docker-compose.vm1.yml logs -f
-
-# Stop:
+# MAKE SURE U STOP ONCE UR DONE else the services will stay running and consume resources:
 docker-compose -f docker-compose.vm1.yml down
 ```
 
@@ -102,16 +102,16 @@ pkill -9 -f "java" 2>/dev/null
 ### Verify services are up
 
 ```bash
-curl http://localhost:8080/user/0   # should return {} with 200 or 404
+curl http://localhost:8080/user/0   # should return {}
 ```
 
 ---
 
 ## Run load tests from your local machine
 
-The VM firewall blocks port 8080 from outside. Use an SSH tunnel.
+We have to use an SSH tunnel b/c VM firewall blocks port 8080 from external access
 
-### Step 1 — Open tunnel (one terminal, leave it open)
+### Step 1 — Open tunnel and leave it open
 
 ```bash
 ./scripts/tunnel.sh <utorid>
@@ -134,6 +134,15 @@ k6 run -e VUS=20 -e DURATION=30s load-gen.js
 ```bash
 pkill -f "ssh -fNT.*8080:localhost"
 ```
+
+## Stop services on VM1 when done
+
+```bash
+# If you used Docker:
+docker-compose -f docker-compose.vm1.yml down
+
+# If you used runme.sh:
+pkill -9 -f "java" 2>/dev/null
 
 ---
 
