@@ -1,15 +1,12 @@
 # docker-compose for VM1 (10.128.1.113) — services only, DB is on VM2 (10.128.2.113)
-# Usage: docker compose -f docker-compose.vm1.yml up --build -d
-#
-# Set DB_HOST env var if your VM2 IP differs:
-#   DB_HOST=10.128.2.113 docker compose -f docker-compose.vm1.yml up --build -d
+# Usage: docker-compose -f docker-compose.vm1.yml up --build -d
 
 services:
   userservice:
     build: .
     command: ["java", "-cp", "compiled:lib/*", "UserService.UserService", "config.json"]
     environment:
-      DB_URL: jdbc:postgresql://${DB_HOST:-10.128.2.113}:5432/a2db
+      DB_URL: jdbc:postgresql://10.128.2.113:5432/a2db
       DB_USER: a2user
       DB_PASS: a2pass
     ports:
@@ -25,7 +22,7 @@ services:
     build: .
     command: ["java", "-cp", "compiled:lib/*", "ProductService.ProductService", "config.json"]
     environment:
-      DB_URL: jdbc:postgresql://${DB_HOST:-10.128.2.113}:5432/a2db
+      DB_URL: jdbc:postgresql://10.128.2.113:5432/a2db
       DB_USER: a2user
       DB_PASS: a2pass
     ports:
@@ -58,7 +55,7 @@ services:
     build: .
     command: ["java", "-cp", "compiled:lib/*", "OrderService.OrderService", "config.json"]
     environment:
-      DB_URL: jdbc:postgresql://${DB_HOST:-10.128.2.113}:5432/a2db
+      DB_URL: jdbc:postgresql://10.128.2.113:5432/a2db
       DB_USER: a2user
       DB_PASS: a2pass
     ports:
