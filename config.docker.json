@@ -1,0 +1,22 @@
+{
+    "UserService": {
+        "port": 8081,
+        "ip": "userservice"
+    },
+    "ProductService": {
+        "port": 8082,
+        "ip": "productservice"
+    },
+    "OrderService": {
+        "port": 8080,
+        "ip": "orderservice"
+    },
+    "InterServiceCommunication": {
+        "port": 14000,
+        "ip": "iscs"
+    },
+    "WorkloadParser": {
+        "port": 8083,
+        "ip": "127.0.0.1"
+    }
+}
