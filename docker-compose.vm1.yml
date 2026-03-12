@@ -1,7 +1,7 @@
 # docker-compose for VM1 (10.128.1.113) — services only, DB is on VM2 (10.128.2.113)
 # Usage: docker-compose -f docker-compose.vm1.yml up --build -d
 
-version: '3.8'
+version: '3.7'
 services:
   userservice:
     build: .
