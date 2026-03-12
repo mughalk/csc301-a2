@@ -5,10 +5,15 @@ import UserService.UserService.UserData;
 import java.sql.*;
 
 public class UserDatabaseManager {
-    private static final String DB_URL = "jdbc:sqlite:users.db";
+    private static final String DB_URL  = System.getenv("DB_URL")  != null ? System.getenv("DB_URL")  : "jdbc:sqlite:users.db";
+    private static final String DB_USER = System.getenv("DB_USER") != null ? System.getenv("DB_USER") : "";
+    private static final String DB_PASS = System.getenv("DB_PASS") != null ? System.getenv("DB_PASS") : "";
 
     // --- Singleton Connection ---
     public static Connection connect() throws SQLException {
+        if (!DB_USER.isEmpty()) {
+            return DriverManager.getConnection(DB_URL, DB_USER, DB_PASS);
+        }
         return DriverManager.getConnection(DB_URL);
     }
 
@@ -21,7 +26,7 @@ public class UserDatabaseManager {
                      "password TEXT)";
         try (Connection conn = connect(); Statement stmt = conn.createStatement()) {
             stmt.execute(sql);
-            System.out.println("Database initialized (SQLite).");
+            System.out.println("Database initialized (" + DB_URL.split(":")[1] + ").");
         } catch (SQLException e) {
             e.printStackTrace();
         }

@@ -94,12 +94,16 @@ start_all() {
 
   echo "[runme] Starting all microservices (Ctrl+C to stop)..."
 
-  trap 'echo; echo "[runme] Shutting down services..."; kill 0; exit 0' INT TERM
-
   run_java_main "UserService"    "UserService.UserService"    "$CONFIG" &
+  PIDS="$!"
   run_java_main "ProductService" "ProductService.ProductService" "$CONFIG" &
+  PIDS="$PIDS $!"
   run_java_main "ISCS"           "ISCS.ISCS"                 "$CONFIG" &
+  PIDS="$PIDS $!"
   run_java_main "OrderService"   "OrderService.OrderService" "$CONFIG" &
+  PIDS="$PIDS $!"
+
+  trap 'echo; echo "[runme] Shutting down services..."; kill -9 $PIDS 2>/dev/null; exit 0' INT TERM
 
   wait
 }

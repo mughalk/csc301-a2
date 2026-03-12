@@ -4,11 +4,13 @@ import java.sql.*;
 
 public class ProductDatabaseManager {
 
-    private static final String DB_URL = "jdbc:sqlite:products.db";
+    private static final String DB_URL  = System.getenv("DB_URL")  != null ? System.getenv("DB_URL")  : "jdbc:sqlite:products.db";
+    private static final String DB_USER = System.getenv("DB_USER") != null ? System.getenv("DB_USER") : "";
+    private static final String DB_PASS = System.getenv("DB_PASS") != null ? System.getenv("DB_PASS") : "";
 
     // Match UserService naming
     public static void initialize() {
-        try (Connection c = DriverManager.getConnection(DB_URL);
+        try (Connection c = openConn();
              Statement st = c.createStatement()) {
 
             st.executeUpdate(
@@ -16,7 +18,7 @@ public class ProductDatabaseManager {
                             "id INTEGER PRIMARY KEY," +
                             "name TEXT NOT NULL," +
                             "description TEXT NOT NULL," +
-                            "price DOUBLE NOT NULL," +
+                            "price DOUBLE PRECISION NOT NULL," +
                             "quantity INTEGER NOT NULL" +
                             ")"
             );
@@ -34,6 +36,9 @@ public class ProductDatabaseManager {
     }
 
     private static Connection openConn() throws SQLException {
+        if (!DB_USER.isEmpty()) {
+            return DriverManager.getConnection(DB_URL, DB_USER, DB_PASS);
+        }
         return DriverManager.getConnection(DB_URL);
     }
 
