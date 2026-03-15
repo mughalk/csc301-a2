@@ -14,6 +14,7 @@ import java.math.BigDecimal;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 
 public class ProductService {
@@ -21,7 +22,8 @@ public class ProductService {
     // IMPORTANT: UserService.java uses 8081. Avoid collision.
     private static final int PORT = 8082;
 
-    private static HttpServer server; // NEW
+    private static HttpServer server;
+    private static final ConcurrentHashMap<Integer, String> productCache = new ConcurrentHashMap<>();
 
     // ---------- Model ----------
     public static class Product {
@@ -125,12 +127,7 @@ public class ProductService {
         ProductDatabaseManager.initialize();
 
         int port = PORT; // default port (8082)
-        String ip = "127.0.0.1"; // default IP
-
-        server = HttpServer.create(new InetSocketAddress(ip, port), 0); // CHANGED
-        server.setExecutor(Executors.newFixedThreadPool(20));
-        server.createContext("/product", new ProductHandler());
-        server.start();
+        String ip = "0.0.0.0"; // listen on all interfaces
 
         // Load config from file if provided
         if (args.length > 0) {
@@ -153,8 +150,8 @@ public class ProductService {
             }
         }
 
-        HttpServer server = HttpServer.create(new InetSocketAddress(ip, port), 0);
-        server.setExecutor(Executors.newFixedThreadPool(20));
+        server = HttpServer.create(new InetSocketAddress(ip, port), 0);
+        server.setExecutor(Executors.newCachedThreadPool());
         server.createContext("/product", new ProductHandler());
         server.start();
 
@@ -168,6 +165,7 @@ public class ProductService {
             String path = exchange.getRequestURI().getPath();
             if ("/product/reset".equals(path)) {
                 ProductDatabaseManager.resetDatabase();
+                productCache.clear();
                 sendJson(exchange, 200, "{\"status\":\"ok\"}");
                 return;
             }
@@ -246,7 +244,9 @@ public class ProductService {
                 return;
             }
 
-            sendJson(exchange, 200, p.toJson());
+            String productJson = p.toJson();
+            productCache.put(id, productJson);
+            sendJson(exchange, 200, productJson);
         }
 
         private void handleUpdate(HttpExchange exchange, JsonObject json, int id) throws IOException {
@@ -291,7 +291,9 @@ public class ProductService {
                     return;
                 }
 
-                sendJson(exchange, 200, existing.toJson());
+                String updatedJson = existing.toJson();
+                productCache.put(id, updatedJson);
+                sendJson(exchange, 200, updatedJson);
             } catch (SQLException e) {
                 sendJson(exchange, 500, "{\"error\":\"Database error\"}");
             }
@@ -324,6 +326,7 @@ public class ProductService {
                     return;
                 }
 
+                productCache.remove(id);
                 sendJson(exchange, 200, "{\"status\":\"deleted\"}");
             } catch (SQLException e) {
                 sendJson(exchange, 500, "{\"error\":\"Database error\"}");
@@ -357,13 +360,21 @@ public class ProductService {
                 return;
             }
 
+            String cached = productCache.get(id);
+            if (cached != null) {
+                sendJson(exchange, 200, cached);
+                return;
+            }
+
             try {
                 Product p = ProductDatabaseManager.getProduct(id);
                 if (p == null) {
                     sendJson(exchange, 404, "{\"error\":\"Product not found\"}");
                     return;
                 }
-                sendJson(exchange, 200, p.toJson());
+                String json = p.toJson();
+                productCache.put(id, json);
+                sendJson(exchange, 200, json);
             } catch (SQLException e) {
                 sendJson(exchange, 500, "{\"error\":\"Database error\"}");
             }

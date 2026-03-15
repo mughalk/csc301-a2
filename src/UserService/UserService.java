@@ -34,12 +34,7 @@ public class UserService {
         UserDatabaseManager.initialize();
 
         int port = 8081; // default port
-        String ip = "127.0.0.1"; // default IP
-
-        server = HttpServer.create(new InetSocketAddress(ip, port), 0); // CHANGED
-        server.setExecutor(Executors.newFixedThreadPool(20));
-        server.createContext("/user", new UserHandler());
-        server.start();
+        String ip = "0.0.0.0"; // listen on all interfaces
 
         // Load config from file if provided
         if (args.length > 0) {
@@ -62,11 +57,9 @@ public class UserService {
             }
         }
 
-        HttpServer server = HttpServer.create(new InetSocketAddress(ip, port), 0);
-        server.setExecutor(Executors.newFixedThreadPool(20));
-
+        server = HttpServer.create(new InetSocketAddress(ip, port), 0);
+        server.setExecutor(Executors.newCachedThreadPool());
         server.createContext("/user", new UserHandler());
-
         server.start();
         System.out.println("Server started on " + ip + ":" + port);
     }
