@@ -1,9 +1,15 @@
 {
     "UserService": [
-        {"ip": "userservice", "port": 8081}
+        {"ip": "userservice1", "port": 8081},
+        {"ip": "userservice2", "port": 8081},
+        {"ip": "userservice3", "port": 8081},
+        {"ip": "userservice4", "port": 8081}
     ],
     "ProductService": [
-        {"ip": "productservice", "port": 8082}
+        {"ip": "productservice1", "port": 8082},
+        {"ip": "productservice2", "port": 8082},
+        {"ip": "productservice3", "port": 8082},
+        {"ip": "productservice4", "port": 8082}
     ],
     "OrderService": {
         "port": 8080,

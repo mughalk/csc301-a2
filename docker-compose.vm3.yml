@@ -1,0 +1,43 @@
+# docker-compose for VM3 (10.128.3.113)
+# UserService :8081 + ProductService :8082
+# DB: PostgreSQL on VM4 (10.128.4.113:5432)
+#
+# Usage:
+#   docker compose -f docker-compose.vm3.yml up --build -d
+
+services:
+  userservice:
+    build: .
+    command: ["java", "-cp", "compiled:lib/*", "UserService.UserService", "config.json"]
+    network_mode: host
+    volumes:
+      - ./config.distributed.json:/app/config.json:ro
+    environment:
+      DB_URL: jdbc:postgresql://10.128.4.113:5432/a2db
+      DB_USER: a2user
+      DB_PASS: a2pass
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8081/user/0"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+      start_period: 20s
+    restart: unless-stopped
+
+  productservice:
+    build: .
+    command: ["java", "-cp", "compiled:lib/*", "ProductService.ProductService", "config.json"]
+    network_mode: host
+    volumes:
+      - ./config.distributed.json:/app/config.json:ro
+    environment:
+      DB_URL: jdbc:postgresql://10.128.4.113:5432/a2db
+      DB_USER: a2user
+      DB_PASS: a2pass
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8082/product/0"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+      start_period: 20s
+    restart: unless-stopped
