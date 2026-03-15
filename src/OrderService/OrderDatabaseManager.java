@@ -1,7 +1,7 @@
 package OrderService;
 
-import com.google.gson.JsonObject;
-
+import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
 import java.sql.*;
 import java.util.HashMap;
 import java.util.Map;
@@ -11,12 +11,25 @@ public class OrderDatabaseManager {
     private static final String DB_USER = System.getenv("DB_USER") != null ? System.getenv("DB_USER") : "";
     private static final String DB_PASS = System.getenv("DB_PASS") != null ? System.getenv("DB_PASS") : "";
 
-    // --- Singleton Connection ---
-    public static Connection connect() throws SQLException {
+    private static final HikariDataSource pool;
+
+    static {
+        HikariConfig config = new HikariConfig();
+        config.setJdbcUrl(DB_URL);
         if (!DB_USER.isEmpty()) {
-            return DriverManager.getConnection(DB_URL, DB_USER, DB_PASS);
+            config.setUsername(DB_USER);
+            config.setPassword(DB_PASS);
         }
-        return DriverManager.getConnection(DB_URL);
+        config.setMaximumPoolSize(20);
+        config.setMinimumIdle(5);
+        config.setConnectionTimeout(30000);
+        config.setIdleTimeout(600000);
+        config.setMaxLifetime(1800000);
+        pool = new HikariDataSource(config);
+    }
+
+    public static Connection connect() throws SQLException {
+        return pool.getConnection();
     }
 
     // --- Initialization ---
