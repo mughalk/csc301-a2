@@ -25,6 +25,12 @@ public class UserDatabaseManager {
                      "email TEXT, " +
                      "password TEXT)";
         try (Connection conn = connect(); Statement stmt = conn.createStatement()) {
+            if (DB_URL.startsWith("jdbc:sqlite")) {
+                stmt.execute("PRAGMA journal_mode=WAL");
+                stmt.execute("PRAGMA synchronous=NORMAL");
+                stmt.execute("PRAGMA cache_size=-65536");
+                stmt.execute("PRAGMA busy_timeout=5000");
+            }
             stmt.execute(sql);
             System.out.println("Database initialized (" + DB_URL.split(":")[1] + ").");
         } catch (SQLException e) {

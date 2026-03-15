@@ -13,6 +13,13 @@ public class ProductDatabaseManager {
         try (Connection c = openConn();
              Statement st = c.createStatement()) {
 
+            if (DB_URL.startsWith("jdbc:sqlite")) {
+                st.execute("PRAGMA journal_mode=WAL");
+                st.execute("PRAGMA synchronous=NORMAL");
+                st.execute("PRAGMA cache_size=-65536");
+                st.execute("PRAGMA busy_timeout=5000");
+            }
+
             st.executeUpdate(
                     "CREATE TABLE IF NOT EXISTS products (" +
                             "id INTEGER PRIMARY KEY," +

@@ -27,6 +27,12 @@ public class OrderDatabaseManager {
                      "quantity INTEGER NOT NULL, " +
                      "PRIMARY KEY (user_id, product_id))";
         try (Connection conn = connect(); Statement stmt = conn.createStatement()) {
+            if (DB_URL.startsWith("jdbc:sqlite")) {
+                stmt.execute("PRAGMA journal_mode=WAL");
+                stmt.execute("PRAGMA synchronous=NORMAL");
+                stmt.execute("PRAGMA cache_size=-65536");
+                stmt.execute("PRAGMA busy_timeout=5000");
+            }
             stmt.execute(sql);
             System.out.println("Orders database initialized (SQLite).");
         } catch (SQLException e) {
