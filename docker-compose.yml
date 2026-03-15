@@ -27,7 +27,7 @@ services:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-s", "http://localhost:8081/user/0"]
+      test: ["CMD", "curl", "-s", "http://userservice:8081/user/0"]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -46,7 +46,7 @@ services:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-s", "http://localhost:8082/product/0"]
+      test: ["CMD", "curl", "-s", "http://productservice:8082/product/0"]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -63,7 +63,7 @@ services:
       productservice:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-s", "http://localhost:14000/user/0"]
+      test: ["CMD", "curl", "-s", "http://iscs:14000/user/0"]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -82,7 +82,7 @@ services:
       iscs:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-s", "http://localhost:14002/user/0"]
+      test: ["CMD", "curl", "-s", "http://orderservice:14002/user/0"]
       interval: 5s
       timeout: 3s
       retries: 10
