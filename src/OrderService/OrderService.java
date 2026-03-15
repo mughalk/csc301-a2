@@ -32,6 +32,7 @@ public class OrderService {
 
     // In-memory order store (allowed unless spec says otherwise)
     private static final Map<String, JsonObject> orders = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<Integer, JsonObject> userPurchasesCache = new ConcurrentHashMap<>();
 
     public static void main(String[] args) throws Exception {
         if (args.length != 1) {
@@ -255,6 +256,7 @@ public class OrderService {
             // 4) Record purchase in database
             try {
                 OrderDatabaseManager.addOrUpdatePurchase(userId, productId, qty);
+                userPurchasesCache.remove(userId);
             } catch (Exception e) {
                 respondStatus(ex, 400, "Invalid Request");
                 return;
@@ -310,6 +312,11 @@ public class OrderService {
                 sendError(ex, 404, "User not found");
                 return;
             }
+            JsonObject cached = userPurchasesCache.get(userId);
+            if (cached != null) {
+               sendJson(ex, 200, cached);
+               return;
+           }
 
             // 2) Get user's purchases from database
             Map<Integer, Integer> purchases = OrderDatabaseManager.getPurchasesForUser(userId);
@@ -319,6 +326,7 @@ public class OrderService {
             for (Map.Entry<Integer, Integer> entry : purchases.entrySet()) {
                 response.addProperty(String.valueOf(entry.getKey()), entry.getValue());
             }
+            userPurchasesCache.put(userId, response);
 
             // 4) Return response (200 with JSON, empty or populated)
             sendJson(ex, 200, response);
@@ -464,6 +472,7 @@ public class OrderService {
     }
 
     private static void wipeDatabases() {
+        userPurchasesCache.clear();
         try {
             // Order DB
             OrderDatabaseManager.resetDatabase();   // or clear tables method

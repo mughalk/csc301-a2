@@ -17,6 +17,7 @@ import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.concurrent.ConcurrentHashMap;
 
 import java.sql.SQLException;
 import java.security.MessageDigest;
@@ -26,6 +27,7 @@ import java.nio.charset.StandardCharsets;
 public class UserService {
 
     private static HttpServer server;
+    private static final ConcurrentHashMap<Integer, String> userCache = new ConcurrentHashMap<>();
 
     public static void main(String[] args) throws IOException {
         // 1. Initialize DB before server starts
@@ -76,6 +78,7 @@ public class UserService {
             String path = exchange.getRequestURI().getPath();
             if ("/user/reset".equals(path)) {
                 UserDatabaseManager.resetDatabase();   // implement this in UserDatabaseManager
+                userCache.clear();
                 sendResponse(exchange, 200, "{}");
                 return;
             }
@@ -137,7 +140,8 @@ public class UserService {
                         UserDatabaseManager.createUser(user.id, user.username, user.email, user.password);
                         // CHANGE: Return the user object as JSON instead of a text string
                         user.command = null;
-                        String jsonResponse = gson.toJson(user); 
+                        String jsonResponse = gson.toJson(user);
+                        userCache.put(user.id, jsonResponse); 
                         sendResponse(exchange, 200, jsonResponse);
                         break;
                         
@@ -190,6 +194,8 @@ public class UserService {
                         UserDatabaseManager.updateUser(existingUser.id, existingUser.username, existingUser.email, existingUser.password);
 
                         // 6. Return the MERGED object so the client sees the full updated state
+                        String updatedJson = gson.toJson(existingUser);
+                        userCache.put(existingUser.id, updatedJson);
                         sendResponse(exchange, 200, gson.toJson(existingUser));
                         break;
                         
@@ -221,6 +227,7 @@ public class UserService {
                         boolean passMatch = dbUser.password.equals(inputHash);
                         if (usernameMatch && emailMatch && passMatch) {
                             UserDatabaseManager.deleteUser(user.id);
+                            userCache.remove(user.id);
                             sendResponse(exchange, 200, "{}");
                         } else {
                             sendResponse(exchange, 401, "{}"); // data mismatch
@@ -248,38 +255,73 @@ public class UserService {
         }
         
         private void handleGet(HttpExchange exchange) throws IOException {
-            // Parse ID from URL: /user/1001
             String path = exchange.getRequestURI().getPath();
             String[] segments = path.split("/");
-            
-            // Expecting segments like ["", "user", "1001"]
-            if (segments.length < 3) { 
-                sendResponse(exchange, 400, "{}"); // invalid url path
+
+            if (segments.length < 3) {
+                sendResponse(exchange, 400, "{}");
                 return;
             }
-            
+
             try {
                 int id = Integer.parseInt(segments[segments.length - 1]);
+
+                String cachedJson = userCache.get(id);
+                if (cachedJson != null) {
+                   exchange.getResponseHeaders().set("Content-Type", "application/json");
+                   sendResponse(exchange, 200, cachedJson);
+                   return;
+                }
+
+            UserData user = convertToUserData(UserDatabaseManager.getUser(id));
+
+            if (user != null) {
+                  Gson gson = new Gson();
+                  String jsonResponse = gson.toJson(user);
+                  userCache.put(id, jsonResponse);
+
+            exchange.getResponseHeaders().set("Content-Type", "application/json");
+            sendResponse(exchange, 200, jsonResponse);
+          } else {
+            sendResponse(exchange, 404, "{}");
+        }
+
+    } catch (NumberFormatException e) {
+        sendResponse(exchange, 400, "{}");
+    }
+            // Parse ID from URL: /user/1001
+            //String path = exchange.getRequestURI().getPath();
+            //String[] segments = path.split("/");
+            
+            // Expecting segments like ["", "user", "1001"]
+            //if (segments.length < 3) { 
+                //sendResponse(exchange, 400, "{}"); // invalid url path
+                //return;
+            //}
+            
+            //try {
+                //int id = Integer.parseInt(segments[segments.length - 1]);
                 
                 // 2. Fetch User
-                UserData user = convertToUserData(UserDatabaseManager.getUser(id));
+                //UserData user = convertToUserData(UserDatabaseManager.getUser(id));
 
-                if (user != null) {
-                    Gson gson = new Gson();
+                //if (user != null) {
+                    //Gson gson = new Gson();
                     
-                    String jsonResponse = gson.toJson(user);
-                    exchange.getResponseHeaders().set("Content-Type", "application/json");
-                    sendResponse(exchange, 200, jsonResponse);
-                } else {
-                    sendResponse(exchange, 404, "{}"); // user not found
-                }
+                    //String jsonResponse = gson.toJson(user);
+                    //exchange.getResponseHeaders().set("Content-Type", "application/json");
+                    //sendResponse(exchange, 200, jsonResponse);
+                //} else {
+                    //sendResponse(exchange, 404, "{}"); // user not found
+                //}
                 
-            } catch (NumberFormatException e) {
+            //} catch (NumberFormatException e) {
                 // 3. Handle non-integer IDs (e.g., "id=abcd")
-                sendResponse(exchange, 400, "{}"); // id must be a number
-            }
-        }
+                //sendResponse(exchange, 400, "{}"); // id must be a number
+            //}
+        //}
     }
+}
 
     // --- HELPER METHODS ---
 
