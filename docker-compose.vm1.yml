@@ -4,7 +4,7 @@
 # DB:  PostgreSQL on VM4 (10.128.4.113:5432)
 #
 # Usage:
-#   docker compose -f docker-compose.vm1.yml up --build -d
+#   docker-compose -f docker-compose.vm1.yml up --build -d
 
 version: '3.8'
 
@@ -12,7 +12,8 @@ services:
   orderservice:
     build: .
     command: ["java", "-cp", "compiled:lib/*", "OrderService.OrderService", "config.json"]
-    network_mode: host
+    ports:
+      - "8080:8080"
     volumes:
       - ./config.distributed.json:/app/config.json:ro
     environment:

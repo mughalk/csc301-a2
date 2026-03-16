@@ -2,7 +2,7 @@
 # ISCS :14000  →  UserService/ProductService on VM3 (10.128.3.113)
 #
 # Usage:
-#   docker compose -f docker-compose.vm2.yml up --build -d
+#   docker-compose -f docker-compose.vm2.yml up --build -d
 
 version: '3.8'
 
@@ -10,7 +10,8 @@ services:
   iscs:
     build: .
     command: ["java", "-cp", "compiled:lib/*", "ISCS.ISCS", "config.json"]
-    network_mode: host
+    ports:
+      - "14000:14000"
     volumes:
       - ./config.distributed.json:/app/config.json:ro
     healthcheck:
