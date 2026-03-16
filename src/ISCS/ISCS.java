@@ -3,7 +3,8 @@ package ISCS;
 import com.sun.net.httpserver.HttpServer;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpExchange;
-import com.google.gson.Gson;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
@@ -94,18 +95,24 @@ public class ISCS {
     private static void registerService(JsonObject config, String serviceName) {
         if (!config.has(serviceName)) return;
 
-        JsonObject serviceBlock = config.getAsJsonObject(serviceName);
+        serviceRegistry.putIfAbsent(serviceName, new ArrayList<>());
+        rrCounters.putIfAbsent(serviceName, new AtomicInteger(0));
+
+        JsonElement element = config.get(serviceName);
+        if (element.isJsonArray()) {
+            for (JsonElement item : element.getAsJsonArray()) {
+                addInstance(serviceName, item.getAsJsonObject());
+            }
+        } else {
+            addInstance(serviceName, element.getAsJsonObject());
+        }
+    }
+
+    private static void addInstance(String serviceName, JsonObject serviceBlock) {
         String ip = serviceBlock.get("ip").getAsString();
         int port = serviceBlock.get("port").getAsInt();
         String address = ip + ":" + port;
-
-        // A2 SCALABILITY: Always treat as a list
-        serviceRegistry.putIfAbsent(serviceName, new ArrayList<>());
         serviceRegistry.get(serviceName).add(address);
-        
-        // Initialize counter for this service
-        rrCounters.putIfAbsent(serviceName, new AtomicInteger(0));
-        
         System.out.println("   + Registered Node for " + serviceName + ": " + address);
     }
 
@@ -148,8 +155,6 @@ public class ISCS {
             if (exchange.getRequestURI().getQuery() != null) {
                 targetUrl += "?" + exchange.getRequestURI().getQuery();
             }
-
-            System.out.println("[ISCS] Routing: " + method + " " + path + " -> " + targetUrl);
 
             // --- 4. EXECUTE FORWARDING ---
             HttpURLConnection connection = null;
@@ -205,8 +210,6 @@ public class ISCS {
             } catch (Exception e) {
                 e.printStackTrace();
                 sendError(exchange, 500, "ISCS Forwarding Error: " + e.getMessage());
-            } finally {
-                if (connection != null) connection.disconnect();
             }
         }
     }

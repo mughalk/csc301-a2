@@ -1,71 +1,26 @@
-# docker-compose for VM1 (10.128.1.113) — services only, DB is on VM2 (10.128.2.113)
-# Usage: docker-compose -f docker-compose.vm1.yml up --build -d
+# docker-compose for VM1 (10.128.1.113)
+# OrderService :8080  ← only externally-reachable port
+# ISCS on VM2 (10.128.2.113:14000)
+# DB:  PostgreSQL on VM4 (10.128.4.113:5432)
+#
+# Usage:
+#   docker compose -f docker-compose.vm1.yml up --build -d
 
 services:
-  userservice:
-    build: .
-    command: ["java", "-cp", "compiled:lib/*", "UserService.UserService", "config.json"]
-    environment:
-      DB_URL: jdbc:postgresql://10.128.2.113:5432/a2db
-      DB_USER: a2user
-      DB_PASS: a2pass
-    ports:
-      - "8081:8081"
-    healthcheck:
-      test: ["CMD", "curl", "-s", "http://userservice:8081/user/0"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
-      start_period: 15s
-
-  productservice:
-    build: .
-    command: ["java", "-cp", "compiled:lib/*", "ProductService.ProductService", "config.json"]
-    environment:
-      DB_URL: jdbc:postgresql://10.128.2.113:5432/a2db
-      DB_USER: a2user
-      DB_PASS: a2pass
-    ports:
-      - "8082:8082"
-    healthcheck:
-      test: ["CMD", "curl", "-s", "http://productservice:8082/product/0"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
-      start_period: 15s
-
-  iscs:
-    build: .
-    command: ["java", "-cp", "compiled:lib/*", "ISCS.ISCS", "config.json"]
-    ports:
-      - "14000:14000"
-    depends_on:
-      userservice:
-        condition: service_healthy
-      productservice:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-s", "http://iscs:14000/user/0"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
-      start_period: 15s
-
   orderservice:
     build: .
     command: ["java", "-cp", "compiled:lib/*", "OrderService.OrderService", "config.json"]
+    network_mode: host
+    volumes:
+      - ./config.distributed.json:/app/config.json:ro
     environment:
-      DB_URL: jdbc:postgresql://10.128.2.113:5432/a2db
+      DB_URL: jdbc:postgresql://10.128.4.113:5432/a2db
       DB_USER: a2user
       DB_PASS: a2pass
-    ports:
-      - "8080:8080"
-    depends_on:
-      iscs:
-        condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-s", "http://orderservice:8080/user/0"]
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/user/0"]
       interval: 5s
       timeout: 3s
-      retries: 10
-      start_period: 15s
+      retries: 15
+      start_period: 20s
+    restart: unless-stopped

@@ -9,7 +9,7 @@ RUN mkdir -p compiled && \
     find src -name "*.java" | xargs javac -cp "lib/*" -d compiled
 
 # Stage 2: run
-FROM eclipse-temurin:21-jre-jammy
+FROM eclipse-temurin:21-jdk-jammy
 WORKDIR /app
 RUN apt-get update && \
     apt-get install -y --no-install-recommends curl && \

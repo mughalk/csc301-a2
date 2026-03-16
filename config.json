@@ -1,12 +1,10 @@
 {
-    "UserService": {
-        "port": 8081,
-        "ip": "127.0.0.1"
-    },
-    "ProductService": {
-        "port": 8082,
-        "ip": "127.0.0.1"
-    },
+    "UserService": [
+        {"ip": "127.0.0.1", "port": 8081}
+    ],
+    "ProductService": [
+        {"ip": "127.0.0.1", "port": 8082}
+    ],
     "OrderService": {
         "port": 8080,
         "ip": "127.0.0.1"

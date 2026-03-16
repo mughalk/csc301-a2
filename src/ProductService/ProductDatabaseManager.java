@@ -1,5 +1,7 @@
 package ProductService;
 
+import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
 import java.sql.*;
 
 public class ProductDatabaseManager {
@@ -8,10 +10,34 @@ public class ProductDatabaseManager {
     private static final String DB_USER = System.getenv("DB_USER") != null ? System.getenv("DB_USER") : "";
     private static final String DB_PASS = System.getenv("DB_PASS") != null ? System.getenv("DB_PASS") : "";
 
+    private static final HikariDataSource pool;
+
+    static {
+        HikariConfig config = new HikariConfig();
+        config.setJdbcUrl(DB_URL);
+        if (!DB_USER.isEmpty()) {
+            config.setUsername(DB_USER);
+            config.setPassword(DB_PASS);
+        }
+        config.setMaximumPoolSize(20);
+        config.setMinimumIdle(5);
+        config.setConnectionTimeout(30000);
+        config.setIdleTimeout(600000);
+        config.setMaxLifetime(1800000);
+        pool = new HikariDataSource(config);
+    }
+
     // Match UserService naming
     public static void initialize() {
         try (Connection c = openConn();
              Statement st = c.createStatement()) {
+
+            if (DB_URL.startsWith("jdbc:sqlite")) {
+                st.execute("PRAGMA journal_mode=WAL");
+                st.execute("PRAGMA synchronous=NORMAL");
+                st.execute("PRAGMA cache_size=-65536");
+                st.execute("PRAGMA busy_timeout=5000");
+            }
 
             st.executeUpdate(
                     "CREATE TABLE IF NOT EXISTS products (" +
@@ -36,10 +62,7 @@ public class ProductDatabaseManager {
     }
 
     private static Connection openConn() throws SQLException {
-        if (!DB_USER.isEmpty()) {
-            return DriverManager.getConnection(DB_URL, DB_USER, DB_PASS);
-        }
-        return DriverManager.getConnection(DB_URL);
+        return pool.getConnection();
     }
 
     public static boolean productExists(int id) throws SQLException {
