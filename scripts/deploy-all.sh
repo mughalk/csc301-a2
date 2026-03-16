@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Redeploy all services after initial setup (git pull + docker compose up --build).
+# Redeploy all services after initial setup (git pull + docker-compose up --build).
 # Run this from VM1. SSHes to VM2 and VM3 automatically.
 #
 # Usage: bash scripts/deploy-all.sh <utorid>
@@ -27,10 +27,10 @@ remote() {
         set -euo pipefail
         cd ~/csc301-a2
         git pull
-        docker compose -f $compose_file down --remove-orphans 2>/dev/null || true
-        docker compose -f $compose_file up --build -d
+        docker-compose -f $compose_file down --remove-orphans 2>/dev/null || true
+        docker-compose -f $compose_file up --build -d
         echo "[$label] containers:"
-        docker compose -f $compose_file ps
+        docker-compose -f $compose_file ps
 EOF
 }
 
@@ -38,10 +38,10 @@ EOF
 echo "=== Deploying VM1 / OrderService (local) ==="
 cd ~/csc301-a2
 git pull
-docker compose -f docker-compose.vm1.yml down --remove-orphans 2>/dev/null || true
-docker compose -f docker-compose.vm1.yml up --build -d
+docker-compose -f docker-compose.vm1.yml down --remove-orphans 2>/dev/null || true
+docker-compose -f docker-compose.vm1.yml up --build -d
 echo "[VM1] containers:"
-docker compose -f docker-compose.vm1.yml ps
+docker-compose -f docker-compose.vm1.yml ps
 
 # --- VM2: ISCS ---
 remote "VM2 / ISCS"                          10.128.2.113  docker-compose.vm2.yml

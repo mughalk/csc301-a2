@@ -17,8 +17,8 @@ echo "[setup-vm3] Deploying UserService + ProductService..."
 newgrp docker <<'EOF'
   cd ~/csc301-a2
   git pull
-  docker compose -f docker-compose.vm3.yml up --build -d
+  docker-compose -f docker-compose.vm3.yml up --build -d
   echo "[setup-vm3] Services started. Check status with:"
-  echo "  docker compose -f docker-compose.vm3.yml ps"
-  echo "  docker compose -f docker-compose.vm3.yml logs -f"
+  echo "  docker-compose -f docker-compose.vm3.yml ps"
+  echo "  docker-compose -f docker-compose.vm3.yml logs -f"
 EOF
