@@ -159,26 +159,32 @@ public class ISCS {
             // --- 4. EXECUTE FORWARDING ---
             HttpURLConnection connection = null;
             try {
+                // Read body first so we know its length before configuring the connection
+                byte[] reqBody = exchange.getRequestBody().readAllBytes();
+
                 URL url = new URL(targetUrl);
                 connection = (HttpURLConnection) url.openConnection();
                 connection.setRequestMethod(method);
                 connection.setInstanceFollowRedirects(false);
-                connection.setDoOutput(true); // Allow sending body
-                connection.setRequestProperty("Connection", "close"); // Prevent stale keep-alive reuse
+                connection.setRequestProperty("Connection", "close");
 
-                // Forward Headers (skip specific ones that might cause issues)
+                // Only enable body output when there is actually a body to send
+                if (reqBody.length > 0) {
+                    connection.setDoOutput(true);
+                    connection.setFixedLengthStreamingMode(reqBody.length);
+                }
+
+                // Forward Headers — skip Host, Content-Length, and Connection
                 for (Map.Entry<String, List<String>> header : exchange.getRequestHeaders().entrySet()) {
-                    if (!header.getKey().equalsIgnoreCase("Host") && 
-                        !header.getKey().equalsIgnoreCase("Content-Length")) {
+                    String key = header.getKey();
+                    if (!key.equalsIgnoreCase("Host") &&
+                        !key.equalsIgnoreCase("Content-Length") &&
+                        !key.equalsIgnoreCase("Connection")) {
                         for (String val : header.getValue()) {
-                            connection.addRequestProperty(header.getKey(), val);
+                            connection.addRequestProperty(key, val);
                         }
                     }
                 }
-
-                // Read request body upfront (avoids Java 21 HttpServer InputStream streaming issues)
-                byte[] reqBody = exchange.getRequestBody().readAllBytes();
-                System.out.println("[ISCS DEBUG] " + method + " " + path + " body=" + reqBody.length + " bytes: " + new String(reqBody, java.nio.charset.StandardCharsets.UTF_8));
 
                 // Forward Body
                 if (reqBody.length > 0) {
