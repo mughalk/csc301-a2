@@ -82,7 +82,13 @@ public class OrderService {
 
             handleFirstRequestGate(body);
 
-            HttpResult res = forward(method, target, body, ex);
+            HttpResult res;
+            try {
+                res = forward(method, target, body, ex);
+            } catch (IOException e) {
+                sendRaw(ex, 503, "{\"error\":\"Service unavailable\"}".getBytes(StandardCharsets.UTF_8));
+                return;
+            }
             sendRaw(ex, res.code, res.body);
         }
     }
@@ -196,17 +202,27 @@ public class OrderService {
             }
 
             // 1) Check user exists (via ISCS)
-            HttpResult userRes = forward("GET", iscsBase + "/user/" + userId, null, ex);
+            HttpResult userRes;
+            try {
+                userRes = forward("GET", iscsBase + "/user/" + userId, null, ex);
+            } catch (IOException e) {
+                respondStatus(ex, 503, "Service unavailable");
+                return;
+            }
             if (userRes.code != 200) {
-                // Test expects 404 for invalid user id
                 respondStatus(ex, 404, "Invalid Request");
                 return;
             }
 
             // 2) Get product (via ISCS)
-            HttpResult prodRes = forward("GET", iscsBase + "/product/" + productId, null, ex);
+            HttpResult prodRes;
+            try {
+                prodRes = forward("GET", iscsBase + "/product/" + productId, null, ex);
+            } catch (IOException e) {
+                respondStatus(ex, 503, "Service unavailable");
+                return;
+            }
             if (prodRes.code != 200) {
-                // Test expects 404 for invalid product id
                 respondStatus(ex, 404, "Invalid Request");
                 return;
             }
@@ -241,12 +257,18 @@ public class OrderService {
             update.addProperty("id", productId);
             update.addProperty("quantity", stock - qty);
 
-            HttpResult updRes = forward(
-                    "POST",
-                    iscsBase + "/product",
-                    GSON.toJson(update).getBytes(StandardCharsets.UTF_8),
-                    ex
-            );
+            HttpResult updRes;
+            try {
+                updRes = forward(
+                        "POST",
+                        iscsBase + "/product",
+                        GSON.toJson(update).getBytes(StandardCharsets.UTF_8),
+                        ex
+                );
+            } catch (IOException e) {
+                respondStatus(ex, 503, "Service unavailable");
+                return;
+            }
 
             if (updRes.code != 200) {
                 respondStatus(ex, 400, "Invalid Request");
