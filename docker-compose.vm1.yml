@@ -6,7 +6,7 @@
 # Usage:
 #   docker-compose -f docker-compose.vm1.yml up --build -d
 
-version: '3.8'
+version: '3.3'
 
 services:
   orderservice:

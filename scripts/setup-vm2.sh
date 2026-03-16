@@ -5,7 +5,7 @@ set -euo pipefail
 
 echo "[setup-vm2] Installing Docker..."
 sudo apt-get update -q
-sudo apt-get install -y docker.io
+sudo apt-get install -y docker.io docker-compose
 sudo systemctl enable docker
 sudo systemctl start docker
 sudo usermod -aG docker "$USER"
