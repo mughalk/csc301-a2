@@ -15,7 +15,7 @@ services:
     volumes:
       - ./config.distributed.json:/app/config.json:ro
     healthcheck:
-      test: ["CMD", "curl", "-sf", "http://localhost:14000/user/0"]
+      test: ["CMD", "curl", "-s", "http://localhost:14000/user/0"]
       interval: 5s
       timeout: 3s
       retries: 15

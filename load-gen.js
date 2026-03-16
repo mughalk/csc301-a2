@@ -44,6 +44,11 @@ const SETUP_PARAMS = { headers: HEADERS, timeout: '5s' };
 
 // setup() — runs once before VUs start
 export function setup() {
+    // Fire the first-request gate with "restart" so it does NOT wipe the DB.
+    // Without this, whatever VU request arrives first after a crash/restart
+    // triggers wipeDatabases(), destroying all seed data mid-test.
+    http.post(`${TARGET}/order`, JSON.stringify({ command: 'restart' }), SETUP_PARAMS);
+
     for (const id of SEED_USER_IDS) {
         http.post(`${TARGET}/user`, JSON.stringify({
             command:  'create',

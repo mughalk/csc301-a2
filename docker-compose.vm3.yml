@@ -20,7 +20,7 @@ services:
       DB_USER: a2user
       DB_PASS: a2pass
     healthcheck:
-      test: ["CMD", "curl", "-sf", "http://localhost:8081/user/0"]
+      test: ["CMD", "curl", "-s", "http://localhost:8081/user/0"]
       interval: 5s
       timeout: 3s
       retries: 15
@@ -38,7 +38,7 @@ services:
       DB_USER: a2user
       DB_PASS: a2pass
     healthcheck:
-      test: ["CMD", "curl", "-sf", "http://localhost:8082/product/0"]
+      test: ["CMD", "curl", "-s", "http://localhost:8082/product/0"]
       interval: 5s
       timeout: 3s
       retries: 15

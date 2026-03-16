@@ -369,6 +369,8 @@ public class OrderService {
             throws IOException {
 
         HttpURLConnection conn = (HttpURLConnection) new URL(urlStr).openConnection();
+        conn.setConnectTimeout(5000);
+        conn.setReadTimeout(10000);
         conn.setRequestMethod(method);
         conn.setRequestProperty("Accept", "application/json");
 
