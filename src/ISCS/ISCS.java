@@ -178,6 +178,7 @@ public class ISCS {
 
                 // Read request body upfront (avoids Java 21 HttpServer InputStream streaming issues)
                 byte[] reqBody = exchange.getRequestBody().readAllBytes();
+                System.out.println("[ISCS DEBUG] " + method + " " + path + " body=" + reqBody.length + " bytes: " + new String(reqBody, java.nio.charset.StandardCharsets.UTF_8));
 
                 // Forward Body
                 if (reqBody.length > 0) {
