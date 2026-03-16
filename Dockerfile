@@ -12,7 +12,7 @@ RUN mkdir -p compiled && \
 FROM eclipse-temurin:21-jdk-jammy
 WORKDIR /app
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends curl && \
+    apt-get install -y --no-install-recommends curl openjdk-21-jdk-headless && \
     rm -rf /var/lib/apt/lists/*
 COPY --from=build /app/compiled compiled/
 COPY lib/ lib/

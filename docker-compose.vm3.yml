@@ -3,15 +3,18 @@
 # DB: PostgreSQL on VM4 (10.128.4.113:5432)
 #
 # Usage:
-#   docker compose -f docker-compose.vm3.yml up --build -d
+#   docker-compose -f docker-compose.vm3.yml up --build -d
+
+version: '3.3'
 
 services:
   userservice:
     build: .
     command: ["java", "-cp", "compiled:lib/*", "UserService.UserService", "config.json"]
-    network_mode: host
+    ports:
+      - "8081:8081"
     volumes:
-      - ./config.distributed.json:/app/config.json:ro
+      - ./config.vm3.json:/app/config.json:ro
     environment:
       DB_URL: jdbc:postgresql://10.128.4.113:5432/a2db
       DB_USER: a2user
@@ -21,15 +24,15 @@ services:
       interval: 5s
       timeout: 3s
       retries: 15
-      start_period: 20s
     restart: unless-stopped
 
   productservice:
     build: .
     command: ["java", "-cp", "compiled:lib/*", "ProductService.ProductService", "config.json"]
-    network_mode: host
+    ports:
+      - "8082:8082"
     volumes:
-      - ./config.distributed.json:/app/config.json:ro
+      - ./config.vm3.json:/app/config.json:ro
     environment:
       DB_URL: jdbc:postgresql://10.128.4.113:5432/a2db
       DB_USER: a2user
@@ -39,5 +42,4 @@ services:
       interval: 5s
       timeout: 3s
       retries: 15
-      start_period: 20s
     restart: unless-stopped
