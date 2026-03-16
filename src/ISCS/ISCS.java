@@ -164,6 +164,7 @@ public class ISCS {
                 connection.setRequestMethod(method);
                 connection.setInstanceFollowRedirects(false);
                 connection.setDoOutput(true); // Allow sending body
+                connection.setRequestProperty("Connection", "close"); // Prevent stale keep-alive reuse
 
                 // Forward Headers (skip specific ones that might cause issues)
                 for (Map.Entry<String, List<String>> header : exchange.getRequestHeaders().entrySet()) {
