@@ -2,20 +2,13 @@
 # Collect docker stats + JVM heap info from all VMs.
 # Run this from VM1. SSHes to VM2 and VM3 automatically.
 #
-# Usage: bash scripts/stats.sh <utorid>
-# Example: bash scripts/stats.sh mughalka
+# Usage: bash scripts/stats.sh
+# Run this FROM VM1.
 #
 # Output: CPU%, memory usage, and JVM heap per container on each VM.
 
 set -euo pipefail
 
-UTORID="${1:-}"
-if [[ -z "$UTORID" ]]; then
-    echo "Usage: $0 <utorid>"
-    exit 1
-fi
-
-LAB_HOST="dh2010pc44.utm.utoronto.ca"
 SSH_OPTS="-o StrictHostKeyChecking=accept-new -o ConnectTimeout=10"
 
 # Run stats on a remote VM
@@ -26,7 +19,7 @@ remote_stats() {
     echo "  $label  ($host)"
     echo "════════════════════════════════════════════════════"
 
-    ssh $SSH_OPTS -J "${UTORID}@${LAB_HOST}" "student@${host}" bash <<'REMOTE'
+    ssh $SSH_OPTS "student@${host}" bash <<'REMOTE'
         echo "--- docker stats (one-shot) ---"
         docker stats --no-stream \
             --format "table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.MemPerc}}\t{{.NetIO}}\t{{.BlockIO}}"
