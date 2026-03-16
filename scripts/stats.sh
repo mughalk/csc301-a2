@@ -3,6 +3,7 @@
 # Run this from VM1. SSHes to VM2 and VM3 automatically.
 #
 # Usage: bash scripts/stats.sh <utorid>
+# Example: bash scripts/stats.sh mughalka
 #
 # Output: CPU%, memory usage, and JVM heap per container on each VM.
 
@@ -14,10 +15,8 @@ if [[ -z "$UTORID" ]]; then
     exit 1
 fi
 
-SSH_OPTS="-o StrictHostKeyChecking=accept-new -o ConnectTimeout=10 -o BatchMode=no"
-if [[ -f ~/.ssh/csc301_vm ]]; then
-    SSH_OPTS="$SSH_OPTS -i ~/.ssh/csc301_vm"
-fi
+LAB_HOST="dh2010pc44.utm.utoronto.ca"
+SSH_OPTS="-o StrictHostKeyChecking=accept-new -o ConnectTimeout=10"
 
 # Run stats on a remote VM
 remote_stats() {
@@ -27,7 +26,7 @@ remote_stats() {
     echo "  $label  ($host)"
     echo "════════════════════════════════════════════════════"
 
-    ssh $SSH_OPTS "${UTORID}@${host}" bash <<'REMOTE'
+    ssh $SSH_OPTS -J "${UTORID}@${LAB_HOST}" "student@${host}" bash <<'REMOTE'
         echo "--- docker stats (one-shot) ---"
         docker stats --no-stream \
             --format "table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.MemPerc}}\t{{.NetIO}}\t{{.BlockIO}}"
