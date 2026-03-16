@@ -176,11 +176,13 @@ public class ISCS {
                     }
                 }
 
-                // Forward Body (if exists)
-                if (exchange.getRequestBody().available() > 0 || "POST".equals(method)) {
-                    try (InputStream clientBody = exchange.getRequestBody();
-                         OutputStream targetBody = connection.getOutputStream()) {
-                        copyStream(clientBody, targetBody);
+                // Read request body upfront (avoids Java 21 HttpServer InputStream streaming issues)
+                byte[] reqBody = exchange.getRequestBody().readAllBytes();
+
+                // Forward Body
+                if (reqBody.length > 0) {
+                    try (OutputStream targetBody = connection.getOutputStream()) {
+                        targetBody.write(reqBody);
                     }
                 }
 
