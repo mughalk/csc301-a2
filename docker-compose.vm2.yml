@@ -4,6 +4,8 @@
 # Usage:
 #   docker compose -f docker-compose.vm2.yml up --build -d
 
+version: '3.8'
+
 services:
   iscs:
     build: .
