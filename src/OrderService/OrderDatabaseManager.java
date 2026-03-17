@@ -2,6 +2,8 @@ package OrderService;
 
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
+import org.sqlite.SQLiteConfig;
+import org.sqlite.SQLiteDataSource;
 import java.sql.*;
 import java.util.HashMap;
 import java.util.Map;
@@ -15,13 +17,32 @@ public class OrderDatabaseManager {
 
     static {
         HikariConfig config = new HikariConfig();
-        config.setJdbcUrl(DB_URL);
-        if (!DB_USER.isEmpty()) {
-            config.setUsername(DB_USER);
-            config.setPassword(DB_PASS);
+        if (DB_URL.startsWith("jdbc:sqlite")) {
+            SQLiteConfig sqConfig = new SQLiteConfig();
+            sqConfig.setJournalMode(SQLiteConfig.JournalMode.WAL);
+            sqConfig.setSynchronous(SQLiteConfig.SynchronousMode.NORMAL);
+            sqConfig.setBusyTimeout(5000);
+            sqConfig.setCacheSize(-65536);
+            SQLiteDataSource ds = new SQLiteDataSource(sqConfig);
+            ds.setUrl(DB_URL);
+            config.setDataSource(ds);
+        } else {
+            config.setJdbcUrl(DB_URL);
+            if (!DB_USER.isEmpty()) {
+                config.setUsername(DB_USER);
+                config.setPassword(DB_PASS);
+            }
         }
-        config.setMaximumPoolSize(20);
-        config.setMinimumIdle(5);
+        if (DB_URL.startsWith("jdbc:sqlite")) {
+            config.setMaximumPoolSize(20);
+            config.setMinimumIdle(5);
+        } else {
+            config.setMaximumPoolSize(50);
+            config.setMinimumIdle(10);
+            config.addDataSourceProperty("cachePrepStmts", "true");
+            config.addDataSourceProperty("prepStmtCacheSize", "250");
+            config.addDataSourceProperty("prepStmtCacheSqlLimit", "2048");
+        }
         config.setConnectionTimeout(30000);
         config.setIdleTimeout(600000);
         config.setMaxLifetime(1800000);
@@ -40,12 +61,6 @@ public class OrderDatabaseManager {
                      "quantity INTEGER NOT NULL, " +
                      "PRIMARY KEY (user_id, product_id))";
         try (Connection conn = connect(); Statement stmt = conn.createStatement()) {
-            if (DB_URL.startsWith("jdbc:sqlite")) {
-                stmt.execute("PRAGMA journal_mode=WAL");
-                stmt.execute("PRAGMA synchronous=NORMAL");
-                stmt.execute("PRAGMA cache_size=-65536");
-                stmt.execute("PRAGMA busy_timeout=5000");
-            }
             stmt.execute(sql);
             System.out.println("Orders database initialized (SQLite).");
         } catch (SQLException e) {
