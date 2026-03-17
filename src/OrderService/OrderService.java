@@ -27,6 +27,7 @@ public class OrderService {
     private static final Gson GSON = new Gson();
     private static HttpServer server;
     private static int port;
+    private static String bindIp;
     private static String iscsBase;
     private static final AtomicBoolean firstGateDone = new AtomicBoolean(false);
 
@@ -45,7 +46,10 @@ public class OrderService {
 
         loadConfig(args[0]);
 
-        server = HttpServer.create(new InetSocketAddress(port), 0); // CHANGED
+        InetSocketAddress addr = (bindIp == null || bindIp.isEmpty())
+            ? new InetSocketAddress(port)
+            : new InetSocketAddress(bindIp, port);
+        server = HttpServer.create(addr, 0);
         server.createContext("/user/purchased", new UserPurchasesHandler());
         server.createContext("/user", new ProxyHandler());
         server.createContext("/product", new ProxyHandler());
@@ -63,6 +67,7 @@ public class OrderService {
 
         JsonObject os = cfg.getAsJsonObject("OrderService");
         port = os.get("port").getAsInt();
+        bindIp = os.has("ip") ? os.get("ip").getAsString() : "";
 
         JsonObject iscs = cfg.getAsJsonObject("InterServiceCommunication");
         iscsBase = "http://" + iscs.get("ip").getAsString() + ":" + iscs.get("port").getAsInt();

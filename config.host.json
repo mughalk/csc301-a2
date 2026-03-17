@@ -1,0 +1,5 @@
+{
+    "OrderService":              { "ip": "142.1.46.113", "port": 8080 },
+    "InterServiceCommunication": { "ip": "10.128.2.113", "port": 14000 },
+    "WorkloadParser":            { "ip": "127.0.0.1",    "port": 8083 }
+}
