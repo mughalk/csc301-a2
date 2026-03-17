@@ -6,12 +6,13 @@
 set -euo pipefail
 
 SSH_OPTS="-o StrictHostKeyChecking=accept-new -o ConnectTimeout=10"
+JUMP="-J student@localhost:2222"
 
 teardown_remote() {
     local label="$1" vm_ip="$2" compose_file="$3"
     echo ""
     echo "=== Tearing down $label ($vm_ip) ==="
-    ssh $SSH_OPTS "mughalka@${vm_ip}" bash <<EOF
+    ssh $SSH_OPTS $JUMP "student@${vm_ip}" bash <<EOF
         set -euo pipefail
         cd ~/csc301-a2
         docker-compose -f $compose_file down --remove-orphans 2>/dev/null || true

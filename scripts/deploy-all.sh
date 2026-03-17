@@ -8,13 +8,15 @@
 set -euo pipefail
 
 SSH_OPTS="-o StrictHostKeyChecking=accept-new -o ConnectTimeout=10"
+# VM2/VM3 are only reachable by jumping through VM1 (ssh -p 2222 student@localhost)
+JUMP="-J student@localhost:2222"
 REPO=~/csc301-a2
 
 deploy_remote() {
     local label="$1" vm_ip="$2" compose_file="$3"
     echo ""
     echo "=== Deploying $label ($vm_ip) ==="
-    ssh $SSH_OPTS "mughalka@${vm_ip}" bash <<EOF
+    ssh $SSH_OPTS $JUMP "student@${vm_ip}" bash <<EOF
         set -euo pipefail
         cd ~/csc301-a2
         git pull
