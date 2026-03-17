@@ -1,18 +1,20 @@
 #!/usr/bin/env bash
-# Redeploy all services. Run this FROM VM1.
-# VM1 is deployed locally; VM2 and VM3 are reached via direct SSH.
+# Redeploy all services. Run this FROM dh2010pc44 (the host).
+# OrderService runs directly on the host (no Docker) so it can bind to the public IP.
+# ISCS (VM2) and UserService+ProductService (VM3) are deployed via SSH+Docker.
 #
 # Usage: bash scripts/deploy-all.sh
 
 set -euo pipefail
 
 SSH_OPTS="-o StrictHostKeyChecking=accept-new -o ConnectTimeout=10"
+REPO=~/csc301-a2
 
 deploy_remote() {
     local label="$1" vm_ip="$2" compose_file="$3"
     echo ""
     echo "=== Deploying $label ($vm_ip) ==="
-    ssh $SSH_OPTS "student@${vm_ip}" bash <<EOF
+    ssh $SSH_OPTS "mughalka@${vm_ip}" bash <<EOF
         set -euo pipefail
         cd ~/csc301-a2
         git pull
@@ -22,16 +24,28 @@ deploy_remote() {
 EOF
 }
 
-echo ""
-echo "=== Deploying VM1 / OrderService (local) ==="
-cd ~/csc301-a2
-git pull
-docker-compose -f docker-compose.vm1.yml down --remove-orphans 2>/dev/null || true
-docker-compose -f docker-compose.vm1.yml up --build -d
-docker-compose -f docker-compose.vm1.yml ps
-
+# Deploy ISCS and UserService+ProductService on VMs first
 deploy_remote "VM2 / ISCS"                         10.128.2.113  docker-compose.vm2.yml
 deploy_remote "VM3 / UserService + ProductService"  10.128.3.113  docker-compose.vm3.yml
 
+# Start OrderService on the host, binding to the public IP
 echo ""
-echo "=== All VMs deployed ==="
+echo "=== Deploying OrderService (host, 142.1.46.113:8080) ==="
+cd "$REPO"
+git pull
+
+# Kill any existing OrderService on this host
+pkill -f "OrderService.OrderService" 2>/dev/null || true
+sleep 1
+
+DB_URL=jdbc:postgresql://10.128.4.113:5432/a2db \
+DB_USER=a2user \
+DB_PASS=a2pass \
+nohup java -cp "compiled:lib/*" OrderService.OrderService config.host.json \
+    > "$REPO/orderservice.log" 2>&1 &
+
+echo "OrderService started (pid $!), logs: $REPO/orderservice.log"
+
+echo ""
+echo "=== All services deployed ==="
+echo "Entry point: http://142.1.46.113:8080"
