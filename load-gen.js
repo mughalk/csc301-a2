@@ -69,6 +69,12 @@ export function setup() {
             price:       id * 9.99,
             quantity:    100000,
         }), SETUP_PARAMS);
+        // Always reset quantity in case product already existed with depleted stock
+        http.post(`${TARGET}/product`, JSON.stringify({
+            command:  'update',
+            id:       id,
+            quantity: 100000,
+        }), SETUP_PARAMS);
     }
 }
 
